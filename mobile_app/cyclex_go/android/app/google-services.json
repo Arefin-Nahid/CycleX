@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "491913952567",
+    "project_id": "cyclex-e0009",
+    "storage_bucket": "cyclex-e0009.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:491913952567:android:dac0a1a49cd87784f5aeb2",
+        "android_client_info": {
+          "package_name": "com.cyclex.go.cyclex_go"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyByZOfJ4ZW05D2EPIXxE5K4IQT8yWotChY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "1014075117975",
+    "project_id": "cyclex-go-a1006",
+    "storage_bucket": "cyclex-go-a1006.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1014075117975:android:860f4b1f80c3b1887b74d2",
+        "android_client_info": {
+          "package_name": "com.cyclex.hub.cyclex_hub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLQxgFl1LTE7fjTuSJHVrBmIQK2_ofyik"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1014075117975:android:dc9747e0e897b0317b74d2",
+        "android_client_info": {
+          "package_name": "com.cyclex.rider.cyclex_go"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLQxgFl1LTE7fjTuSJHVrBmIQK2_ofyik"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
