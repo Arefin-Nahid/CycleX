@@ -20,31 +20,126 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _login() async {
     if (_formKey.currentState!.validate()) {
+      String email = emailTextEditingController.text.trim();
+      if (!_isKUETEmail(email)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Only KUET emails are allowed to log in.")),
+        );
+        return;
+      }
+
       try {
-        await firebaseAuth
-            .signInWithEmailAndPassword(
-          email: emailTextEditingController.text.trim(),
+        UserCredential authResult = await firebaseAuth.signInWithEmailAndPassword(
+          email: email,
           password: passwordTextEditingController.text.trim(),
-        )
-            .then((auth) {
+        );
+
+        User? user = authResult.user;
+
+        if (user != null && user.emailVerified) {
           Navigator.pushReplacementNamed(context, '/homeScreen');
-        });
+        } else if (user != null && !user.emailVerified) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Please verify your email before logging in.")),
+          );
+        }
+      } on FirebaseAuthException catch (e) {
+        debugPrint("FirebaseAuthException code: ${e.code}");
+        String errorMessage;
+        switch (e.code) {
+          case 'wrong-password':
+            errorMessage = "Incorrect password. Please try again.";
+            break;
+          case 'user-not-found':
+            errorMessage = "No account found with this email.";
+            break;
+          case 'invalid-email':
+            errorMessage = "Invalid email format.";
+            break;
+          default:
+            errorMessage = "Login failed: ${e.message}";
+            break;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Login failed: $e")),
+          SnackBar(content: Text("Login failed: ${e.toString()}")),
         );
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill out all fields correctly.")),
-      );
     }
+  }
+
+
+
+  bool _isKUETEmail(String email) {
+    return email.endsWith("@stud.kuet.ac.bd");
+  }
+
+  void _forgotPassword() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final emailResetController = TextEditingController();
+
+        return AlertDialog(
+          title: const Text("Forgot Password"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("Enter your registered KUET email to receive a password reset link."),
+              const SizedBox(height: 16),
+              TextField(
+                controller: emailResetController,
+                decoration: const InputDecoration(
+                  labelText: "Email",
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () async {
+                String email = emailResetController.text.trim();
+                if (!_isKUETEmail(email)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Only KUET emails are allowed.")),
+                  );
+                  return;
+                }
+
+                try {
+                  await firebaseAuth.sendPasswordResetEmail(email: email);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Password reset email sent.")),
+                  );
+                  Navigator.pop(context);
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error: ${e.toString()}")),
+                  );
+                }
+              },
+              child: const Text("Send Reset Email"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    bool darkTheme = MediaQuery.of(context).platformBrightness == Brightness.dark;
-
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -83,10 +178,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 20),
                       TextFormField(
                         controller: emailTextEditingController,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: "Email",
                           border: OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.email),
+                          prefixIcon: Icon(Icons.email),
                         ),
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
@@ -125,6 +220,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           }
                           return null;
                         },
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _forgotPassword,
+                          child: const Text("Forgot Password?"),
+                        ),
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton(

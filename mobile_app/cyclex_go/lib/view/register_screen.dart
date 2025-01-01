@@ -25,45 +25,82 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void _submit() async {
     if (_formKey.currentState!.validate()) {
+      // KUET Email Validation
+      String email = emailTextEditingController.text.trim();
+      if (!email.endsWith("@stud.kuet.ac.bd")) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Only KUET emails are allowed to register.")),
+        );
+        return;
+      }
+
       try {
-        await firebaseAuth
-            .createUserWithEmailAndPassword(
-          email: emailTextEditingController.text.trim(),
+        UserCredential authResult = await firebaseAuth.createUserWithEmailAndPassword(
+          email: email,
           password: passwordTextEditingController.text.trim(),
-        )
-            .then((auth) async {
-          final currentUser = auth.user;
+        );
 
-          if (currentUser != null) {
-            Map<String, String> userMap = {
-              "id": currentUser.uid,
-              "name": nameTextEditingController.text.trim(),
-              "email": emailTextEditingController.text.trim(),
-              "address": addressTextEditingController.text.trim(),
-              "phone": phoneTextEditingController.text.trim(),
-            };
+        User? user = authResult.user;
 
-            DatabaseReference userRef =
-            FirebaseDatabase.instance.ref().child("users");
-            await userRef.child(currentUser.uid).set(userMap);
+        if (user != null) {
+          await user.sendEmailVerification();
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Registration successful!")),
-            );
+          _showVerificationMessage(user);
 
-            Navigator.pushReplacementNamed(context, '/login');
-          }
-        });
+          // Save user details to Firebase Realtime Database
+          DatabaseReference userRef = FirebaseDatabase.instance.ref().child("users");
+          await userRef.child(user.uid).set({
+            "id": user.uid,
+            "name": nameTextEditingController.text.trim(),
+            "email": email,
+            "address": addressTextEditingController.text.trim(),
+            "phone": phoneTextEditingController.text.trim(),
+          });
+
+          Navigator.pushReplacementNamed(context, '/login');
+        }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Registration failed: $e")),
         );
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill out all fields correctly.")),
-      );
     }
+  }
+
+  void _showVerificationMessage(User user) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Email Verification Required"),
+          content: const Text(
+              "A verification email has been sent to your email address. Please check your inbox to verify your email."),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text("Okay"),
+            ),
+            TextButton(
+              onPressed: () async {
+                try {
+                  await user.sendEmailVerification();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Verification email sent again!")),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Failed to resend email: $e")),
+                  );
+                }
+              },
+              child: const Text("Resend Email"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
