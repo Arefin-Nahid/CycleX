@@ -17,30 +17,36 @@ class _MapViewState extends State<MapView> {
   final Set<Marker> _markers = {};
   bool _isLoading = true;
   List<Cycle> _nearbyCycles = [];
+  final LatLng _kuetLocation = const LatLng(22.8999, 89.5020);
+  BitmapDescriptor? _cycleIcon;
 
   @override
   void initState() {
     super.initState();
+    _loadCustomMarker();
     _initializeLocation();
+  }
+
+  Future<void> _loadCustomMarker() async {
+    _cycleIcon = await BitmapDescriptor.fromAssetImage(
+      const ImageConfiguration(size: Size(48, 48)),
+      'assets/images/cycle_marker.png', // Add this image to your assets
+    );
   }
 
   Future<void> _initializeLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        throw 'Location services are disabled.';
+        throw Exception('Location services are disabled');
       }
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          throw 'Location permissions are denied.';
+          throw Exception('Location permissions are denied');
         }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        throw 'Location permissions are permanently denied.';
       }
 
       Position position = await Geolocator.getCurrentPosition(
@@ -52,8 +58,7 @@ class _MapViewState extends State<MapView> {
         _isLoading = false;
       });
 
-      _updateMarkers();
-      _fetchNearbyCycles(position.latitude, position.longitude);
+      await _fetchNearbyCycles(position.latitude, position.longitude);
 
       _mapController?.animateCamera(
         CameraUpdate.newCameraPosition(
@@ -64,6 +69,7 @@ class _MapViewState extends State<MapView> {
         ),
       );
     } catch (e) {
+      setState(() => _isLoading = false);
       _showErrorDialog('Error initializing location: $e');
     }
   }
@@ -76,46 +82,46 @@ class _MapViewState extends State<MapView> {
       );
 
       setState(() {
-        _nearbyCycles = cycles.map((cycleData) => Cycle.fromJson(cycleData)).toList();
-        _updateMarkers();
+        _markers.clear();
+
+        // Add current location marker
+        if (_currentPosition != null) {
+          _markers.add(
+            Marker(
+              markerId: const MarkerId('currentLocation'),
+              position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+              infoWindow: const InfoWindow(title: 'Your Location'),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+            ),
+          );
+        }
+
+        // Add only active and available cycles
+        for (var cycle in cycles) {
+          if (cycle['isActive'] == true && 
+              cycle['isRented'] == false && 
+              cycle['coordinates'] != null) {
+            _markers.add(
+              Marker(
+                markerId: MarkerId(cycle['_id']),
+                position: LatLng(
+                  cycle['coordinates']['latitude'],
+                  cycle['coordinates']['longitude'],
+                ),
+                infoWindow: InfoWindow(
+                  title: '${cycle['brand']} ${cycle['model']}',
+                  snippet: '৳${cycle['hourlyRate']}/hour',
+                ),
+                icon: _cycleIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+                onTap: () => _showCycleDetails(Cycle.fromJson(cycle)),
+              ),
+            );
+          }
+        }
       });
     } catch (e) {
       _showErrorDialog('Error fetching nearby cycles: $e');
     }
-  }
-
-  void _updateMarkers() {
-    setState(() {
-      _markers.clear();
-
-      // Add current location marker
-      if (_currentPosition != null) {
-        _markers.add(
-          Marker(
-            markerId: const MarkerId('currentLocation'),
-            position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-            infoWindow: const InfoWindow(title: 'Your Location'),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-          ),
-        );
-      }
-
-      // Add cycle markers
-      for (var cycle in _nearbyCycles) {
-        _markers.add(
-          Marker(
-            markerId: MarkerId(cycle.id),
-            position: LatLng(cycle.location.latitude, cycle.location.longitude),
-            infoWindow: InfoWindow(
-              title: cycle.model,
-              snippet: '৳${cycle.hourlyRate}/hour',
-            ),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-            onTap: () => _showCycleDetails(cycle),
-          ),
-        );
-      }
-    });
   }
 
   void _showCycleDetails(Cycle cycle) {
@@ -147,14 +153,18 @@ class _MapViewState extends State<MapView> {
                 color: Colors.green,
               ),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Location: ${cycle.location}',
+              style: const TextStyle(
+                fontSize: 16,
+              ),
+            ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Implement rent cycle functionality
-                  Navigator.pop(context);
-                },
+                onPressed: () => _rentCycle(cycle),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00D0C3),
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -172,6 +182,22 @@ class _MapViewState extends State<MapView> {
         ),
       ),
     );
+  }
+
+  Future<void> _rentCycle(Cycle cycle) async {
+    try {
+      // Call the API to rent the cycle
+      await ApiService.instance.rentCycle(cycle.id);
+
+      if (mounted) {
+        Navigator.pop(context); // Close the bottom sheet
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cycle rented successfully')),
+        );
+      }
+    } catch (e) {
+      _showErrorDialog('Error renting cycle: $e');
+    }
   }
 
   void _showErrorDialog(String message) {
@@ -208,58 +234,56 @@ class _MapViewState extends State<MapView> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Stack(
-              children: [
-                GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: _currentPosition != null
-                        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-                        : const LatLng(0, 0),
-                    zoom: 15.0,
-                  ),
-                  onMapCreated: (controller) => _mapController = controller,
-                  markers: _markers,
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  zoomControlsEnabled: false,
-                  mapType: MapType.normal,
-                ),
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  right: 16,
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.search, color: Colors.grey),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              'Search for cycles nearby',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.filter_list),
-                            onPressed: () {
-                              // TODO: Implement filter functionality
-                            },
-                          ),
-                        ],
+        children: [
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: _kuetLocation,
+              zoom: 15.0,
+            ),
+            onMapCreated: (controller) => _mapController = controller,
+            markers: _markers,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
+            zoomControlsEnabled: false,
+            mapType: MapType.normal,
+          ),
+          Positioned(
+            top: 16,
+            left: 16,
+            right: 16,
+            child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.search, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Search for cycles nearby',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
-                  ),
+                    IconButton(
+                      icon: const Icon(Icons.filter_list),
+                      onPressed: () {
+                        // TODO: Implement filter functionality
+                      },
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _initializeLocation,
         backgroundColor: const Color(0xFF00D0C3),

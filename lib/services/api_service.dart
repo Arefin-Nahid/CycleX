@@ -51,9 +51,13 @@ class ApiService {
   }) async {
     try {
       await instance._updateAuthHeader();
-      final response = await instance.get('cycles/nearby?lat=$lat&lng=$lng');
+      final response = await instance.get(
+        'cycles/nearby?lat=$lat&lng=$lng'
+      );
       if (response['cycles'] is List) {
-        return List<Map<String, dynamic>>.from(response['cycles']);
+        return List<Map<String, dynamic>>.from(
+          response['cycles'].where((cycle) => cycle['isActive'])
+        );
       }
       return [];
     } catch (e) {
@@ -62,15 +66,13 @@ class ApiService {
     }
   }
 
-  // Get rental history
+  // Get rental history - static method
   static Future<List<Map<String, dynamic>>> getRentalHistory() async {
     try {
       await instance._updateAuthHeader();
-      final response = await instance.get('rentals/history');
-      if (response is List) {
-        return List<Map<String, dynamic>>.from(response);
-      }
-      return [];
+      final response = await instance.get('rentals/my-rentals');
+      final data = response;
+      return List<Map<String, dynamic>>.from(data['rentals']);
     } catch (e) {
       print('Error getting rental history: $e');
       return [];
@@ -120,6 +122,153 @@ class ApiService {
       return json.decode(response.body);
     } else {
       throw Exception('API Error: ${response.statusCode} - ${response.body}');
+    }
+  }
+
+  // Add a new cycle
+  Future<Map<String, dynamic>> addCycle(Map<String, dynamic> cycleData) async {
+    try {
+      await _updateAuthHeader();
+      final response = await http.post(
+        Uri.parse('$baseUrl/owner/cycles'),
+        headers: _headers,
+        body: json.encode(cycleData),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      throw Exception('Failed to add cycle: $e');
+    }
+  }
+
+  // Get owner's cycles
+  Future<List<Map<String, dynamic>>> getMyCycles() async {
+    try {
+      await _updateAuthHeader();
+      final response = await http.get(
+        Uri.parse('$baseUrl/owner/cycles'),
+        headers: _headers,
+      );
+      final data = _handleResponse(response);
+      return List<Map<String, dynamic>>.from(data['cycles']);
+    } catch (e) {
+      throw Exception('Failed to get cycles: $e');
+    }
+  }
+
+  // Get owner dashboard stats
+  Future<Map<String, dynamic>> getOwnerDashboardStats() async {
+    try {
+      await _updateAuthHeader();
+      final response = await http.get(
+        Uri.parse('$baseUrl/owner/dashboard'),
+        headers: _headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      throw Exception('Failed to get dashboard stats: $e');
+    }
+  }
+
+  // Get recent activities
+  Future<List<Map<String, dynamic>>> getRecentActivities() async {
+    try {
+      await _updateAuthHeader();
+      final response = await http.get(
+        Uri.parse('$baseUrl/owner/activities'),
+        headers: _headers,
+      );
+      final data = _handleResponse(response);
+      return List<Map<String, dynamic>>.from(data['activities']);
+    } catch (e) {
+      throw Exception('Failed to get recent activities: $e');
+    }
+  }
+
+  // Get renter dashboard stats
+  Future<Map<String, dynamic>> getRenterDashboardStats() async {
+    try {
+      await _updateAuthHeader();
+      final response = await http.get(
+        Uri.parse('$baseUrl/renter/dashboard'),
+        headers: _headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      throw Exception('Failed to get renter dashboard stats: $e');
+    }
+  }
+
+  // Get active rentals
+  Future<List<Map<String, dynamic>>> getActiveRentals() async {
+    try {
+      await _updateAuthHeader();
+      final response = await http.get(
+        Uri.parse('$baseUrl/renter/active-rentals'),
+        headers: _headers,
+      );
+      final data = _handleResponse(response);
+      return List<Map<String, dynamic>>.from(data['rentals']);
+    } catch (e) {
+      throw Exception('Failed to get active rentals: $e');
+    }
+  }
+
+  // Get recent rides
+  Future<List<Map<String, dynamic>>> getRecentRides() async {
+    try {
+      await _updateAuthHeader();
+      final response = await http.get(
+        Uri.parse('$baseUrl/renter/recent-rides'),
+        headers: _headers,
+      );
+      final data = _handleResponse(response);
+      return List<Map<String, dynamic>>.from(data['rides']);
+    } catch (e) {
+      throw Exception('Failed to get recent rides: $e');
+    }
+  }
+// Toggle cycle status
+  Future<Map<String, dynamic>> toggleCycleStatus(
+    String cycleId, 
+    {Map<String, dynamic>? coordinates}
+  ) async {
+    try {
+      await _updateAuthHeader();
+      final response = await http.patch(
+        Uri.parse('$baseUrl/owner/cycles/$cycleId/toggle-status'),
+        headers: _headers,
+        body: json.encode({
+          'coordinates': coordinates,
+          'location': coordinates?['address'], // Include the address
+        }),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      throw Exception('Failed to toggle cycle status: $e');
+    }
+  }
+  // rentCycle method
+  Future<void> rentCycle(String cycleId) async {
+    try {
+      await _updateAuthHeader(); // Ensure headers are updated with Firebase token
+      final response = await post('rentals', {'cycleId': cycleId});
+      return response; // Assuming your API responds with a success message
+    } catch (e) {
+      throw Exception('Failed to rent cycle: $e');
+    }
+  }
+
+  // Delete cycle
+  Future<void> deleteCycle(String cycleId) async {
+    try {
+      await _updateAuthHeader();
+      final response = await http.delete(
+        Uri.parse('$baseUrl/owner/cycles/$cycleId'),
+        headers: _headers,
+      );
+      _handleResponse(response);
+    } catch (e) {
+      throw Exception('Failed to delete cycle: $e');
     }
   }
 }

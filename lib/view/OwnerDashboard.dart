@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:CycleX/view/owner/AddCycleScreen.dart';
+import 'package:CycleX/view/owner/MyCyclesScreen.dart';
+import 'package:CycleX/view/owner/RentalHistoryScreen.dart';
+import 'package:CycleX/services/api_service.dart';
 
 class OwnerDashboard extends StatefulWidget {
   const OwnerDashboard({Key? key}) : super(key: key);
@@ -11,180 +14,215 @@ class OwnerDashboard extends StatefulWidget {
 
 class _OwnerDashboardState extends State<OwnerDashboard> {
   final user = FirebaseAuth.instance.currentUser;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool isLoading = true;
+  Map<String, dynamic> dashboardStats = {
+    'totalCycles': 0,
+    'activeRentals': 0,
+    'totalEarnings': 0.0,
+    'averageRating': 0.0,
+  };
+  List<Map<String, dynamic>> recentActivities = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    try {
+      final stats = await ApiService.instance.getOwnerDashboardStats();
+      final activities = await ApiService.instance.getRecentActivities();
+
+      setState(() {
+        dashboardStats = stats;
+        recentActivities = activities;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading dashboard data: $e');
+      setState(() {
+        isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading dashboard data: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _navigateToAddCycle() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddCycleScreen()),
+    );
+    if (result == true) {
+      // Refresh dashboard data when a new cycle is added
+      _loadDashboardData();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // Custom App Bar
-          SliverAppBar(
-            expandedHeight: 200,
-            floating: false,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.teal.shade700,
-                      Colors.blue.shade800,
-                    ],
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : CustomScrollView(
+              slivers: [
+                // Custom App Bar
+                SliverAppBar(
+                  expandedHeight: 200,
+                  floating: false,
+                  pinned: true,
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.teal.shade700,
+                            Colors.blue.shade800,
+                          ],
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircleAvatar(
+                            radius: 40,
+                            backgroundColor: Colors.white,
+                            child: Icon(
+                              Icons.person,
+                              size: 40,
+                              color: Colors.teal,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            user?.displayName ?? 'Cycle Owner',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Colors.white,
-                      child: Icon(
-                        Icons.person,
-                        size: 40,
-                        color: Colors.teal,
-                      ),
+
+                // Dashboard Content
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Statistics Cards
+                        Row(
+                          children: [
+                            _buildStatCard(
+                              'Total Cycles',
+                              dashboardStats['totalCycles'].toString(),
+                              Icons.pedal_bike,
+                              Colors.blue,
+                            ),
+                            const SizedBox(width: 16),
+                            _buildStatCard(
+                              'Active Rentals',
+                              dashboardStats['activeRentals'].toString(),
+                              Icons.timer,
+                              Colors.green,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            _buildStatCard(
+                              'Total Earnings',
+                              '৳${dashboardStats['totalEarnings'].toStringAsFixed(2)}',
+                              Icons.attach_money,
+                              Colors.orange,
+                            ),
+                            const SizedBox(width: 16),
+                            _buildStatCard(
+                              'Reviews',
+                              '${dashboardStats['averageRating'].toStringAsFixed(1)} ★',
+                              Icons.star,
+                              Colors.purple,
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 24),
+                        
+                        // Quick Actions
+                        const Text(
+                          'Quick Actions',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildActionButton(
+                          'Add New Cycle',
+                          Icons.add_circle_outline,
+                          _navigateToAddCycle,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildActionButton(
+                          'View All Cycles',
+                          Icons.list_alt,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const MyCyclesScreen()),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _buildActionButton(
+                          'Rental History',
+                          Icons.history,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const RentalHistoryScreen()),
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 24),
+                        
+                        // Recent Activities
+                        const Text(
+                          'Recent Activities',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ...recentActivities.map((activity) => _buildActivityCard(
+                              activity['title'],
+                              activity['description'],
+                              activity['time'],
+                              _getActivityIcon(activity['type']),
+                              _getActivityColor(activity['type']),
+                            )),
+                      ],
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      user?.displayName ?? 'Cycle Owner',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ),
-
-          // Dashboard Content
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Statistics Cards
-                  Row(
-                    children: [
-                      _buildStatCard(
-                        'Total Cycles',
-                        '5',
-                        Icons.pedal_bike,
-                        Colors.blue,
-                      ),
-                      const SizedBox(width: 16),
-                      _buildStatCard(
-                        'Active Rentals',
-                        '3',
-                        Icons.timer,
-                        Colors.green,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _buildStatCard(
-                        'Total Earnings',
-                        '৳2500',
-                        Icons.attach_money,
-                        Colors.orange,
-                      ),
-                      const SizedBox(width: 16),
-                      _buildStatCard(
-                        'Reviews',
-                        '4.5 ★',
-                        Icons.star,
-                        Colors.purple,
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-                  
-                  // Quick Actions
-                  const Text(
-                    'Quick Actions',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildActionButton(
-                    'Add New Cycle',
-                    Icons.add_circle_outline,
-                    () {
-                      // Navigate to add cycle screen
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildActionButton(
-                    'View All Cycles',
-                    Icons.list_alt,
-                    () {
-                      // Navigate to cycles list
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildActionButton(
-                    'Rental History',
-                    Icons.history,
-                    () {
-                      // Navigate to rental history
-                    },
-                  ),
-
-                  const SizedBox(height: 24),
-                  
-                  // Recent Activities
-                  const Text(
-                    'Recent Activities',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildActivityCard(
-                    'New Rental Request',
-                    'Student ID: 1907121\nCycle #123 - 2 hours',
-                    '2 mins ago',
-                    Icons.notifications_active,
-                    Colors.blue,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildActivityCard(
-                    'Payment Received',
-                    'Student ID: 1907118\n৳200 from Cycle #121',
-                    '1 hour ago',
-                    Icons.payments,
-                    Colors.green,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildActivityCard(
-                    '5★ Review Received',
-                    'Student ID: 1907115\n"Great condition, smooth ride!"',
-                    '3 hours ago',
-                    Icons.star,
-                    Colors.orange,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // Navigate to add cycle screen
-        },
+        onPressed: _navigateToAddCycle,
         icon: const Icon(Icons.add),
         label: const Text('Add Cycle'),
         backgroundColor: Colors.teal,
@@ -335,5 +373,31 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
         ],
       ),
     );
+  }
+
+  IconData _getActivityIcon(String type) {
+    switch (type) {
+      case 'rental_request':
+        return Icons.notifications_active;
+      case 'payment':
+        return Icons.payments;
+      case 'review':
+        return Icons.star;
+      default:
+        return Icons.info_outline;
+    }
+  }
+
+  Color _getActivityColor(String type) {
+    switch (type) {
+      case 'rental_request':
+        return Colors.blue;
+      case 'payment':
+        return Colors.green;
+      case 'review':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
   }
 } 

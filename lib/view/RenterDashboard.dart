@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:CycleX/Config/routes/PageConstants.dart';
+import 'package:CycleX/services/api_service.dart';
+import 'package:intl/intl.dart';
 
 class RenterDashboard extends StatefulWidget {
   const RenterDashboard({Key? key}) : super(key: key);
@@ -9,37 +11,198 @@ class RenterDashboard extends StatefulWidget {
 }
 
 class _RenterDashboardState extends State<RenterDashboard> {
-  final List<Map<String, dynamic>> _activeRentals = [
-    {
-      'id': 'CYC001',
-      'model': 'Mountain Bike Pro',
-      'startTime': '10:30 AM',
-      'duration': '2h 15m',
-      'cost': '৳45.00',
-      'location': 'KUET Campus',
+  bool isLoading = true;
+  Map<String, dynamic> dashboardStats = {
+    'totalRides': 0,
+    'totalSpent': 0.0,
+  };
+  List<Map<String, dynamic>> activeRentals = [];
+  List<Map<String, dynamic>> recentRides = [];
+
+  final Color primaryColor = const Color(0xFF17153A);
+  final Color accentColor = const Color(0xFF00D0C3);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    try {
+      final stats = await ApiService.instance.getRenterDashboardStats();
+      final actives = await ApiService.instance.getActiveRentals();
+      final rides = await ApiService.instance.getRecentRides();
+
+      setState(() {
+        dashboardStats = stats;
+        activeRentals = actives;
+        recentRides = rides;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading dashboard data: $e');
+      setState(() {
+        isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading dashboard data: $e')),
+        );
+      }
     }
-  ];
+  }
 
-  final List<Map<String, dynamic>> _recentRides = [
-    {
-      'id': 'CYC003',
-      'model': 'City Rider',
-      'date': 'Today',
-      'duration': '45m',
-      'cost': '৳15.00',
-      'location': 'Academic Zone',
-    },
-    {
-      'id': 'CYC002',
-      'model': 'Sport Cycle',
-      'date': 'Yesterday',
-      'duration': '1h 30m',
-      'cost': '৳30.00',
-      'location': 'Residential Area',
-    },
-  ];
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              primaryColor,
+              primaryColor.withOpacity(0.8),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                  children: [
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          const Text(
+                            'Renter Dashboard',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
-  Widget _buildStatCard(String title, String value, IconData icon) {
+                    // Quick Actions
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _buildQuickActionButton(
+                              icon: Icons.map,
+                              label: 'Find Cycles',
+                              onPressed: () => Navigator.pushNamed(
+                                context,
+                                PageConstants.mapViewScreen,
+                              ),
+                              primary: true,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildQuickActionButton(
+                              icon: Icons.qr_code_scanner,
+                              label: 'Scan QR',
+                              onPressed: () {
+                                // TODO: Implement QR scanning
+                              },
+                              primary: false,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Main Content
+                    Expanded(
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(30),
+                            topRight: Radius.circular(30),
+                          ),
+                        ),
+                        child: RefreshIndicator(
+                          onRefresh: _loadDashboardData,
+                          child: ListView(
+                            padding: const EdgeInsets.all(20),
+                            children: [
+                              // Stats Cards
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildStatCard(
+                                      'Total Rides',
+                                      dashboardStats['totalRides'].toString(),
+                                      Icons.pedal_bike,
+                                      accentColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: _buildStatCard(
+                                      'Total Spent',
+                                      '৳${dashboardStats['totalSpent'].toStringAsFixed(2)}',
+                                      Icons.account_balance_wallet,
+                                      primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 24),
+
+                              // Active Rentals
+                              if (activeRentals.isNotEmpty) ...[
+                                _buildSectionHeader('Active Rental'),
+                                const SizedBox(height: 12),
+                                ...activeRentals.map((rental) => _buildActiveRentalCard(rental)),
+                                const SizedBox(height: 24),
+                              ],
+
+                              // Recent Rides
+                              _buildSectionHeader(
+                                'Recent Rides',
+                                action: TextButton(
+                                  onPressed: () => Navigator.pushNamed(
+                                    context,
+                                    PageConstants.historyScreen,
+                                  ),
+                                  child: Text(
+                                    'View All',
+                                    style: TextStyle(color: accentColor),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              ...recentRides.map((ride) => _buildRecentRideCard(ride)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -47,7 +210,7 @@ class _RenterDashboardState extends State<RenterDashboard> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: color.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 10,
             offset: const Offset(0, 1),
@@ -60,24 +223,25 @@ class _RenterDashboardState extends State<RenterDashboard> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: Colors.blue.shade700),
+            child: Icon(icon, color: color),
           ),
           const SizedBox(height: 12),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 20,
+            style: TextStyle(
+              fontSize: 24,
               fontWeight: FontWeight.bold,
+              color: color,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             title,
             style: TextStyle(
-              color: Colors.grey.shade600,
+              color: Colors.grey[600],
               fontSize: 14,
             ),
           ),
@@ -92,17 +256,20 @@ class _RenterDashboardState extends State<RenterDashboard> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.blue.shade700, Colors.blue.shade900],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
+          colors: [
+            accentColor,
+            accentColor.withOpacity(0.8),
+          ],
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.shade200.withOpacity(0.5),
-            spreadRadius: 2,
+            color: accentColor.withOpacity(0.3),
+            spreadRadius: 1,
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -116,7 +283,7 @@ class _RenterDashboardState extends State<RenterDashboard> {
                 rental['model'],
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -129,301 +296,94 @@ class _RenterDashboardState extends State<RenterDashboard> {
                 child: Text(
                   'Active',
                   style: TextStyle(
-                    color: Colors.green.shade300,
-                    fontWeight: FontWeight.bold,
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildRentalInfo(Icons.access_time, 'Started', rental['startTime']),
-              _buildRentalInfo(Icons.timer, 'Duration', rental['duration']),
-              _buildRentalInfo(Icons.attach_money, 'Cost', rental['cost']),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              const Icon(Icons.location_on, color: Colors.white70, size: 16),
-              const SizedBox(width: 8),
-              Text(
-                rental['location'],
-                style: const TextStyle(color: Colors.white70),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.blue.shade900,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text('End Ride'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: () => Navigator.pushNamed(
-                  context,
-                  PageConstants.mapViewScreen,
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.2),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text('View on Map'),
-              ),
-            ],
-          ),
+          _buildRentalDetail(Icons.access_time, 'Start Time: ${rental['startTime']}'),
+          _buildRentalDetail(Icons.timer, 'Duration: ${rental['duration']} hours'),
+          _buildRentalDetail(Icons.attach_money, 'Cost: ৳${rental['cost']}'),
+          _buildRentalDetail(Icons.location_on, rental['location']),
         ],
       ),
     );
   }
 
-  Widget _buildRentalInfo(IconData icon, String label, String value) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white70, size: 16),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white70, fontSize: 12),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+  Widget _buildRentalDetail(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white.withOpacity(0.9), size: 16),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 14,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildRecentRideCard(Map<String, dynamic> ride) {
-    return Container(
+    return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 10,
-            offset: const Offset(0, 1),
-          ),
-        ],
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
       ),
+      elevation: 2,
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        title: Text(
+          ride['model'],
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            _buildRideDetail(Icons.calendar_today, _formatDate(ride['date'])),
+            _buildRideDetail(Icons.timer, '${ride['duration']} hours'),
+            _buildRideDetail(Icons.attach_money, '৳${ride['cost']}'),
+            _buildRideDetail(Icons.location_on, ride['location']),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRideDetail(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(12),
+          Icon(icon, size: 14, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
             ),
-            child: Icon(
-              Icons.pedal_bike,
-              color: Colors.blue.shade700,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  ride['model'],
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  ride['location'],
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                ride['cost'],
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                ride['duration'],
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 14,
-                ),
-              ),
-            ],
           ),
         ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Renter Dashboard',
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: const Color(0xFF17153A),
-        elevation: 0,
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              const Color(0xFF17153A),
-              Colors.blue.shade900,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Quick Actions Bar
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildQuickActionButton(
-                        icon: Icons.map,
-                        label: 'Find Cycles',
-                        onPressed: () => Navigator.pushNamed(
-                          context,
-                          PageConstants.mapViewScreen,
-                        ),
-                        primary: true,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildQuickActionButton(
-                        icon: Icons.qr_code_scanner,
-                        label: 'Scan QR',
-                        onPressed: () {
-                          // TODO: Implement QR scanning
-                        },
-                        primary: false,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Main Content
-              Expanded(
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(30),
-                      topRight: Radius.circular(30),
-                    ),
-                  ),
-                  child: ListView(
-                    padding: const EdgeInsets.all(20),
-                    children: [
-                      // Stats Row
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatCard(
-                              'Total Rides',
-                              '24',
-                              Icons.pedal_bike,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _buildStatCard(
-                              'Total Spent',
-                              '৳450',
-                              Icons.account_balance_wallet,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Active Rentals
-                      if (_activeRentals.isNotEmpty) ...[
-                        _buildSectionHeader('Active Rental'),
-                        const SizedBox(height: 12),
-                        ..._activeRentals.map((rental) => _buildActiveRentalCard(rental)),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // Recent Rides
-                      _buildSectionHeader(
-                        'Recent Rides',
-                        action: TextButton(
-                          onPressed: () => Navigator.pushNamed(
-                            context,
-                            PageConstants.historyScreen,
-                          ),
-                          child: const Text('View All'),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ..._recentRides.map((ride) => _buildRecentRideCard(ride)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  String _formatDate(String date) {
+    final DateTime dateTime = DateTime.parse(date);
+    return DateFormat('MMM d, y').format(dateTime);
   }
 
   Widget _buildQuickActionButton({
@@ -435,8 +395,8 @@ class _RenterDashboardState extends State<RenterDashboard> {
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: primary ? const Color(0xFF00D0C3) : Colors.white,
-        foregroundColor: primary ? Colors.white : const Color(0xFF17153A),
+        backgroundColor: primary ? accentColor : Colors.white,
+        foregroundColor: primary ? Colors.white : primaryColor,
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -466,10 +426,10 @@ class _RenterDashboardState extends State<RenterDashboard> {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF17153A),
+            color: primaryColor,
           ),
         ),
         if (action != null) action,

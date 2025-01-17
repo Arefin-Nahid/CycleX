@@ -26,24 +26,28 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
   Future<void> _loadHistory() async {
     try {
-      final data = await ApiService.getRentalHistory();
-      
+      final data = await ApiService.getRentalHistory(); // Use static method
       setState(() {
-        // Safely convert the data
         rentals = List<Map<String, dynamic>>.from(data);
-        
+
         // Calculate stats from rentals
         int rides = rentals.length;
-        double spent = rentals.fold(0.0, (sum, rental) => 
-          sum + (rental['amount'] as num).toDouble());
-        
+        double spent = rentals.fold(
+          0.0,
+              (sum, rental) => sum + (rental['amount'] as num).toDouble(),
+        );
+
         totalRides = rides.toString();
         totalSpent = '\$${spent.toStringAsFixed(2)}';
       });
     } catch (e) {
+      setState(() {
+        error = 'Failed to load rental history';
+      });
       print('Error loading history: $e');
     }
   }
+
 
   Widget _buildHistoryCard(Map<String, dynamic> rental) {
     Color statusColor;

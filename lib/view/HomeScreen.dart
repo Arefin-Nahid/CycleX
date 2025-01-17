@@ -12,6 +12,7 @@ class Homescreen extends StatefulWidget {
 class _HomescreenState extends State<Homescreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String userName = '';
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -34,6 +35,12 @@ class _HomescreenState extends State<Homescreen> {
         await user.updateDisplayName(user.email!.split('@')[0]);
       }
     }
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   Widget _buildFeatureCard({
@@ -257,6 +264,25 @@ class _HomescreenState extends State<Homescreen> {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: 'Notifications',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.teal,
+        onTap: _onItemTapped,
       ),
     );
   }

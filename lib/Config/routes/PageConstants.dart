@@ -22,4 +22,9 @@ class PageConstants {
   static const String notificationsScreen = '/notifications';
   static const String securityScreen = '/security';
   static const String helpSupportScreen = '/help-support';
+  
+  // Add these constants
+  static const String addCycleScreen = '/add-cycle';
+  static const String myCyclesScreen = '/my-cycles';
+  static const String rentalHistoryScreen = '/rental-history';
 }
