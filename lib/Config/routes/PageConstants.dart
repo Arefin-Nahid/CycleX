@@ -27,4 +27,5 @@ class PageConstants {
   static const String addCycleScreen = '/add-cycle';
   static const String myCyclesScreen = '/my-cycles';
   static const String rentalHistoryScreen = '/rental-history';
+  static const String qrScannerScreen = '/qr-scanner';
 }

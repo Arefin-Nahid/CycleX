@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:CycleX/Config/routes/PageConstants.dart';
 import 'package:CycleX/services/api_service.dart';
+import 'package:CycleX/view/QRScannerScreen.dart';
 import 'package:intl/intl.dart';
 
 class RenterDashboard extends StatefulWidget {
@@ -18,6 +19,7 @@ class _RenterDashboardState extends State<RenterDashboard> {
   };
   List<Map<String, dynamic>> activeRentals = [];
   List<Map<String, dynamic>> recentRides = [];
+  bool isProcessingQR = false;
 
   final Color primaryColor = const Color(0xFF17153A);
   final Color accentColor = const Color(0xFF00D0C3);
@@ -51,6 +53,250 @@ class _RenterDashboardState extends State<RenterDashboard> {
         );
       }
     }
+  }
+
+  Future<void> _scanQRCode() async {
+    try {
+      final String? scannedCode = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const QRScannerScreen(),
+        ),
+      );
+
+      if (scannedCode != null && mounted) {
+        await _processScannedCode(scannedCode);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error scanning QR code: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _processScannedCode(String cycleId) async {
+    setState(() {
+      isProcessingQR = true;
+    });
+
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Processing QR Code...'),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+
+      // First, get cycle details
+      final cycleDetails = await ApiService.instance.getCycleById(cycleId);
+      
+      // Close loading dialog
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      // Check if cycle is available for rent
+      if (cycleDetails['isActive'] == true && cycleDetails['isAvailable'] == true) {
+        // Show confirmation dialog
+        final shouldRent = await _showRentConfirmationDialog(cycleDetails);
+        
+        if (shouldRent == true) {
+          // Show processing dialog
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return const Center(
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Renting cycle...'),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+
+          // Rent the cycle
+          final rentalResult = await ApiService.instance.rentCycleByQR(cycleId);
+          
+          // Close processing dialog
+          if (mounted) {
+            Navigator.pop(context);
+          }
+
+          // Show success message
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Successfully rented ${cycleDetails['model']}!'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+
+          // Refresh dashboard data to show the new rental
+          await _loadDashboardData();
+        }
+      } else {
+        // Show error message
+        if (mounted) {
+          _showCycleUnavailableDialog(cycleDetails);
+        }
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error processing QR code: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        isProcessingQR = false;
+      });
+    }
+  }
+
+  Future<bool?> _showRentConfirmationDialog(Map<String, dynamic> cycleDetails) {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Rental'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Do you want to rent this cycle?',
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              _buildCycleInfoRow('Model', cycleDetails['model'] ?? 'N/A'),
+              _buildCycleInfoRow('Rate', '৳${cycleDetails['rate']?.toString() ?? 'N/A'}/hour'),
+              _buildCycleInfoRow('Location', cycleDetails['location'] ?? 'N/A'),
+              if (cycleDetails['description'] != null)
+                _buildCycleInfoRow('Description', cycleDetails['description']),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accentColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Rent Now'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCycleInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCycleUnavailableDialog(Map<String, dynamic> cycleDetails) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Cycle Unavailable'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${cycleDetails['model']} is currently not available for rent.',
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Reason: ${cycleDetails['isActive'] == false ? 'Cycle is inactive' : 'Cycle is already rented'}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -114,9 +360,7 @@ class _RenterDashboardState extends State<RenterDashboard> {
                             child: _buildQuickActionButton(
                               icon: Icons.qr_code_scanner,
                               label: 'Scan QR',
-                              onPressed: () {
-                                // TODO: Implement QR scanning
-                              },
+                              onPressed: isProcessingQR ? () {} : () => _scanQRCode(),
                               primary: false,
                             ),
                           ),

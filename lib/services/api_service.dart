@@ -227,6 +227,35 @@ class ApiService {
       throw Exception('Failed to get recent rides: $e');
     }
   }
+
+  // Get cycle details by ID
+  Future<Map<String, dynamic>> getCycleById(String cycleId) async {
+    try {
+      await _updateAuthHeader();
+      final response = await http.get(
+        Uri.parse('$baseUrl/cycles/$cycleId'),
+        headers: _headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      throw Exception('Failed to get cycle details: $e');
+    }
+  }
+
+  // Rent cycle by scanning QR code
+  Future<Map<String, dynamic>> rentCycleByQR(String cycleId) async {
+    try {
+      await _updateAuthHeader();
+      final response = await http.post(
+        Uri.parse('$baseUrl/rentals/scan-qr'),
+        headers: _headers,
+        body: json.encode({'cycleId': cycleId}),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      throw Exception('Failed to rent cycle via QR: $e');
+    }
+  }
 // Toggle cycle status
   Future<Map<String, dynamic>> toggleCycleStatus(
     String cycleId, 

@@ -17,6 +17,7 @@ import 'package:CycleX/view/NotificationsScreen.dart';
 import 'package:CycleX/view/SecurityScreen.dart';
 import 'package:CycleX/view/HelpSupportScreen.dart';
 import 'package:CycleX/view/history_screen.dart';
+import 'package:CycleX/view/QRScannerScreen.dart';
 
 class OneGeneralRoute {
   static Route<dynamic> routes(RouteSettings settings) {
@@ -77,6 +78,9 @@ class OneGeneralRoute {
         
       case PageConstants.historyScreen:
         return materialPageRoute(widget: const HistoryScreen());
+        
+      case PageConstants.qrScannerScreen:
+        return materialPageRoute(widget: const QRScannerScreen());
         
       default:
         return _errorRoute();
