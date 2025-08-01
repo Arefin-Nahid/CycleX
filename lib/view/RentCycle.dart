@@ -64,22 +64,28 @@ class _RentCycleState extends State<RentCycle> {
   }
 
   String _getErrorMessage(String error) {
+    print('🔍 Processing error: $error');
+    
     if (error.contains('CYCLE_NOT_FOUND')) {
       return 'Cycle not found. Please check the QR code.';
     } else if (error.contains('CYCLE_UNAVAILABLE')) {
       return 'This cycle is already rented.';
     } else if (error.contains('CYCLE_INACTIVE')) {
       return 'This cycle is not available for rent.';
+    } else if (error.contains('CYCLE_UNAVAILABLE_OR_INACTIVE')) {
+      return 'This cycle is not available for rent (may be inactive or already rented).';
     } else if (error.contains('INVALID_ID_FORMAT')) {
       return 'Invalid QR code format.';
-    } else if (error.contains('Network') || error.contains('timeout')) {
-      return 'Network error. Please check your connection and try again.';
     } else if (error.contains('OWNER_RENTAL_NOT_ALLOWED')) {
       return 'You cannot rent your own cycle.';
     } else if (error.contains('ACTIVE_RENTAL_EXISTS')) {
       return 'You already have an active rental. Please return your current cycle first.';
+    } else if (error.contains('Network') || error.contains('timeout')) {
+      return 'Network error. Please check your connection and try again.';
+    } else if (error.contains('500') || error.contains('Internal Server Error')) {
+      return 'Server error. Please try again in a few moments.';
     } else {
-      return 'An error occurred. Please try again.';
+      return 'An error occurred while starting the rental. Please try again.';
     }
   }
 
@@ -91,13 +97,43 @@ class _RentCycleState extends State<RentCycle> {
         _isRenting = true;
       });
 
-      // Call the backend API to rent the cycle
-      final response = await ApiService.rentCycleByQR(widget.cycleId);
+      print('🔍 Starting rental for cycle: ${widget.cycleId}');
+
+      Map<String, dynamic> response;
+      
+      try {
+        // Try regular rental endpoint first
+        response = await ApiService.instance.rentCycle(widget.cycleId);
+        print('✅ Regular rental response: $response');
+        
+        // Check if response is valid
+        if (response == null) {
+          throw Exception('Empty response from rental endpoint');
+        }
+        
+      } catch (regularError) {
+        print('❌ Regular rental failed: $regularError');
+        // Fallback to QR rental endpoint
+        try {
+          response = await ApiService.rentCycleByQR(widget.cycleId);
+          print('✅ QR rental response: $response');
+          
+          // Check if response is valid
+          if (response == null) {
+            throw Exception('Empty response from QR rental endpoint');
+          }
+          
+        } catch (qrError) {
+          print('❌ QR rental also failed: $qrError');
+          throw Exception('Both rental methods failed. Regular: $regularError, QR: $qrError');
+        }
+      }
       
       // Show success dialog
       _showSuccessDialog(response);
       
     } catch (e) {
+      print('❌ Rental error: $e');
       setState(() {
         _isRenting = false;
       });
@@ -108,6 +144,13 @@ class _RentCycleState extends State<RentCycle> {
   }
 
   void _showSuccessDialog(Map<String, dynamic> response) {
+    // Extract data from response
+    final rental = response['rental'] ?? {};
+    final cycle = response['cycle'] ?? rental['cycle'] ?? {};
+    final startTime = rental['startTime'] != null 
+        ? DateTime.tryParse(rental['startTime']) ?? DateTime.now()
+        : DateTime.now();
+    
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -135,18 +178,23 @@ class _RentCycleState extends State<RentCycle> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Cycle: ${_cycleData?['brand']} ${_cycleData?['model']}',
+              'Cycle: ${cycle['brand'] ?? 'Unknown'} ${cycle['model'] ?? 'Cycle'}',
               style: const TextStyle(color: Colors.white),
             ),
             const SizedBox(height: 8),
             Text(
-              'Start Time: ${DateFormat('MMM dd, yyyy HH:mm').format(DateTime.now())}',
+              'Start Time: ${DateFormat('MMM dd, yyyy HH:mm').format(startTime)}',
               style: const TextStyle(color: Colors.white),
             ),
             const SizedBox(height: 8),
             Text(
-              'Rate: ৳${_cycleData?['hourlyRate']}/hour',
+              'Rate: ৳${cycle['hourlyRate'] ?? 0}/hour',
               style: const TextStyle(color: Colors.green),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Rental ID: ${rental['_id']?.toString().substring(0, 8) ?? 'N/A'}',
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
             ),
             const SizedBox(height: 16),
             Container(

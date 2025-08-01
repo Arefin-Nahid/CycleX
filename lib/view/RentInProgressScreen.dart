@@ -11,6 +11,7 @@ class RentInProgressScreen extends StatefulWidget {
 
 class _RentInProgressScreenState extends State<RentInProgressScreen> {
   bool _isLoading = true;
+  bool _isEndingRental = false;
   Map<String, dynamic>? _activeRental;
   String? _errorMessage;
 
@@ -50,24 +51,59 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
   }
 
   Future<void> _endRental() async {
+    if (_activeRental == null) return;
+
     try {
       // Show confirmation dialog
       final shouldEnd = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           backgroundColor: const Color(0xFF17153A),
-          title: const Text(
-            'End Rental',
-            style: TextStyle(color: Colors.white),
+          title: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.orange, size: 28),
+              SizedBox(width: 12),
+              Text(
+                'End Rental',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ],
           ),
-          content: const Text(
-            'Are you sure you want to end this rental?',
-            style: TextStyle(color: Colors.white),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to end this rental?',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              SizedBox(height: 12),
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'This action cannot be undone. Make sure you have returned the cycle to a safe location.',
+                        style: TextStyle(color: Colors.orange, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text(
+              child: Text(
                 'Cancel',
                 style: TextStyle(color: Colors.white),
               ),
@@ -78,35 +114,158 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('End Rental'),
+              child: Text('End Rental'),
             ),
           ],
         ),
       );
 
       if (shouldEnd == true) {
-        // TODO: Implement end rental API call
-        // For now, just show a success message
+        setState(() {
+          _isEndingRental = true;
+        });
+
+        // Call the API to end the rental
+        final rentalId = _activeRental!['_id'] ?? _activeRental!['id'];
+        await ApiService.endRental(rentalId);
+        
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Rental ended successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          Navigator.pop(context);
+          _showSuccessDialog();
         }
       }
     } catch (e) {
+      setState(() {
+        _isEndingRental = false;
+      });
+      
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error ending rental: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showErrorDialog(_getErrorMessage(e.toString()));
       }
     }
+  }
+
+  String _getErrorMessage(String error) {
+    if (error.contains('RENTAL_NOT_FOUND')) {
+      return 'Rental not found. It may have already been ended.';
+    } else if (error.contains('FORBIDDEN')) {
+      return 'You are not authorized to end this rental.';
+    } else if (error.contains('INVALID_STATUS')) {
+      return 'This rental cannot be ended as it is not active.';
+    } else if (error.contains('Network') || error.contains('timeout')) {
+      return 'Network error. Please check your connection and try again.';
+    } else {
+      return 'An error occurred while ending the rental. Please try again.';
+    }
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF17153A),
+        title: Row(
+          children: [
+            Icon(
+              Icons.check_circle,
+              color: Colors.green,
+              size: 28,
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Rental Ended!',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your rental has been successfully ended.',
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.green, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Thank you for using CycleX! Please ensure the cycle is safely returned.',
+                      style: TextStyle(color: Colors.green, fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Go back to previous screen
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF17153A),
+        title: Row(
+          children: [
+            Icon(
+              Icons.error,
+              color: Colors.red,
+              size: 28,
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Error',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: TextStyle(color: Colors.white, fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -450,14 +609,36 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
                   ),
                   elevation: 4,
                 ),
-                onPressed: _endRental,
-                child: const Text(
-                  'End Rental',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                onPressed: _isEndingRental ? null : _endRental,
+                child: _isEndingRental
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Text(
+                            'Ending Rental...',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        'End Rental',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 16),

@@ -108,6 +108,18 @@ class ApiService {
     }
   }
 
+  // End rental functionality
+  static Future<Map<String, dynamic>> endRental(String rentalId) async {
+    try {
+      await instance._updateAuthHeader();
+      final response = await instance.post('renter/rentals/$rentalId/complete', {});
+      return Map<String, dynamic>.from(response);
+    } catch (e) {
+      print('Error ending rental: $e');
+      throw Exception('Failed to end rental: $e');
+    }
+  }
+
   // Verify if user has profile
   static Future<bool> verifyLogin(String uid) async {
     try {
@@ -122,18 +134,46 @@ class ApiService {
   // Get nearby cycles
   static Future<List<Map<String, dynamic>>> getNearbyCycles({
     required double lat,
-    required double lng
+    required double lng,
+    double radius = 20.0
   }) async {
     try {
       await instance._updateAuthHeader();
-      final response = await instance.get(
-        'cycles/nearby?lat=$lat&lng=$lng'
-      );
-      if (response['cycles'] is List) {
-        return List<Map<String, dynamic>>.from(
-          response['cycles'].where((cycle) => cycle['isActive'])
+      
+      // Try the optimized map endpoint first
+      try {
+        final response = await instance.get(
+          'cycles/map/active?lat=$lat&lng=$lng&radius=$radius'
         );
+        
+        if (response['cycles'] is List) {
+          return List<Map<String, dynamic>>.from(response['cycles']);
+        }
+      } catch (mapError) {
+        // Fallback to the original nearby endpoint
+        final fallbackResponse = await instance.get(
+          'cycles/nearby?lat=$lat&lng=$lng'
+        );
+        
+        if (fallbackResponse['cycles'] is List) {
+          final allCycles = List<Map<String, dynamic>>.from(fallbackResponse['cycles']);
+          return allCycles.where((cycle) => 
+            cycle['isActive'] == true && cycle['isRented'] == false
+          ).toList();
+        }
       }
+      
+      // If both endpoints fail, try getting all cycles
+      final allResponse = await instance.get('cycles/');
+      if (allResponse['cycles'] is List) {
+        final allCycles = List<Map<String, dynamic>>.from(allResponse['cycles']);
+        return allCycles.where((cycle) => 
+          cycle['isActive'] == true && 
+          cycle['isRented'] == false &&
+          cycle['coordinates'] != null
+        ).toList();
+      }
+      
       return [];
     } catch (e) {
       print('Error getting nearby cycles: $e');
@@ -145,7 +185,7 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> getRentalHistory() async {
     try {
       await instance._updateAuthHeader();
-      final response = await instance.get('rentals/my-rentals');
+      final response = await instance.get('renter/rental-history');
       final data = response;
       return List<Map<String, dynamic>>.from(data['rentals']);
     } catch (e) {
@@ -286,9 +326,14 @@ class ApiService {
   static Future<Map<String, dynamic>> rentCycleByQR(String cycleId) async {
     try {
       await instance._updateAuthHeader();
+      print('🔍 API: Calling rent-by-qr endpoint with cycleId: $cycleId');
+      
       final response = await instance.post('cycles/rent-by-qr', {'cycleId': cycleId});
+      print('✅ API: Rental response received: $response');
+      
       return Map<String, dynamic>.from(response);
     } catch (e) {
+      print('❌ API: Error in rentCycleByQR: $e');
       throw Exception('Failed to rent cycle via QR: $e');
     }
   }
@@ -315,12 +360,24 @@ class ApiService {
   }
 
   // rentCycle method
-  Future<void> rentCycle(String cycleId) async {
+  Future<Map<String, dynamic>> rentCycle(String cycleId) async {
     try {
       await _updateAuthHeader(); // Ensure headers are updated with Firebase token
+      print('🔍 API: Calling rentals endpoint with cycleId: $cycleId');
+      
       final response = await post('rentals', {'cycleId': cycleId});
-      return response; // Assuming your API responds with a success message
+      print('✅ API: Rental response received: $response');
+      
+      // Ensure we return a proper map
+      if (response is Map<String, dynamic>) {
+        return response;
+      } else if (response != null) {
+        return {'success': true, 'data': response};
+      } else {
+        throw Exception('Empty response from server');
+      }
     } catch (e) {
+      print('❌ API: Error in rentCycle: $e');
       throw Exception('Failed to rent cycle: $e');
     }
   }
@@ -336,6 +393,40 @@ class ApiService {
       _handleResponse(response);
     } catch (e) {
       throw Exception('Failed to delete cycle: $e');
+    }
+  }
+
+  // Debug method to test rental endpoints
+  static Future<void> debugRentalEndpoints(String cycleId) async {
+    try {
+      print('🔍 DEBUG: Testing rental endpoints for cycle: $cycleId');
+      
+      // Test cycle details endpoint
+      try {
+        final cycleDetails = await getCycleByIdWithRetry(cycleId);
+        print('✅ DEBUG: Cycle details: $cycleDetails');
+      } catch (e) {
+        print('❌ DEBUG: Cycle details failed: $e');
+      }
+      
+      // Test regular rental endpoint
+      try {
+        final regularRental = await instance.rentCycle(cycleId);
+        print('✅ DEBUG: Regular rental: $regularRental');
+      } catch (e) {
+        print('❌ DEBUG: Regular rental failed: $e');
+      }
+      
+      // Test QR rental endpoint
+      try {
+        final qrRental = await rentCycleByQR(cycleId);
+        print('✅ DEBUG: QR rental: $qrRental');
+      } catch (e) {
+        print('❌ DEBUG: QR rental failed: $e');
+      }
+      
+    } catch (e) {
+      print('❌ DEBUG: Overall debug failed: $e');
     }
   }
 }
