@@ -33,6 +33,81 @@ class ApiService {
     }
   }
 
+  // Enhanced HTTP methods with retry logic
+  Future<dynamic> get(String endpoint, {int maxRetries = 3}) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        final response = await http.get(
+          Uri.parse('$baseUrl/$endpoint'),
+          headers: _headers,
+        );
+        return _handleResponse(response);
+      } catch (e) {
+        if (attempt == maxRetries) {
+          throw Exception('Failed to perform GET request after $maxRetries attempts: $e');
+        }
+        if (_isNetworkError(e.toString())) {
+          await Future.delayed(Duration(seconds: attempt * 2)); // Exponential backoff
+        } else {
+          throw Exception('Failed to perform GET request: $e');
+        }
+      }
+    }
+    throw Exception('Max retries exceeded for GET request');
+  }
+
+  Future<dynamic> post(String endpoint, dynamic data, {int maxRetries = 3}) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        final response = await http.post(
+          Uri.parse('$baseUrl/$endpoint'),
+          headers: _headers,
+          body: json.encode(data),
+        );
+        return _handleResponse(response);
+      } catch (e) {
+        if (attempt == maxRetries) {
+          throw Exception('Failed to perform POST request after $maxRetries attempts: $e');
+        }
+        if (_isNetworkError(e.toString())) {
+          await Future.delayed(Duration(seconds: attempt * 2)); // Exponential backoff
+        } else {
+          throw Exception('Failed to perform POST request: $e');
+        }
+      }
+    }
+    throw Exception('Max retries exceeded for POST request');
+  }
+
+  bool _isNetworkError(String error) {
+    return error.contains('Network') || 
+           error.contains('timeout') || 
+           error.contains('connection') ||
+           error.contains('SocketException');
+  }
+
+  // Enhanced getCycleById with retry logic
+  Future<Map<String, dynamic>> getCycleById(String cycleId, {int maxRetries = 3}) async {
+    try {
+      await _updateAuthHeader();
+      return await get('cycles/$cycleId', maxRetries: maxRetries);
+    } catch (e) {
+      print('Error getting cycle by ID: $e');
+      throw Exception('Failed to get cycle details: $e');
+    }
+  }
+
+  // Enhanced getCycleById with retry logic - static method
+  static Future<Map<String, dynamic>> getCycleByIdWithRetry(String cycleId, {int maxRetries = 3}) async {
+    try {
+      await instance._updateAuthHeader();
+      return await instance.get('cycles/$cycleId', maxRetries: maxRetries);
+    } catch (e) {
+      print('Error getting cycle by ID with retry: $e');
+      throw Exception('Failed to get cycle details: $e');
+    }
+  }
+
   // Verify if user has profile
   static Future<bool> verifyLogin(String uid) async {
     try {
@@ -91,37 +166,16 @@ class ApiService {
     }
   }
 
-  // Basic HTTP methods
-  Future<dynamic> get(String endpoint) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/$endpoint'),
-        headers: _headers,
-      );
-      return _handleResponse(response);
-    } catch (e) {
-      throw Exception('Failed to perform GET request: $e');
-    }
-  }
-
-  Future<dynamic> post(String endpoint, dynamic data) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/$endpoint'),
-        headers: _headers,
-        body: json.encode(data),
-      );
-      return _handleResponse(response);
-    } catch (e) {
-      throw Exception('Failed to perform POST request: $e');
-    }
-  }
-
   dynamic _handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return json.decode(response.body);
     } else {
-      throw Exception('API Error: ${response.statusCode} - ${response.body}');
+      // Enhanced error handling with specific error codes
+      final errorBody = json.decode(response.body);
+      final errorMessage = errorBody['message'] ?? 'Unknown error';
+      final errorCode = errorBody['error'] ?? 'UNKNOWN_ERROR';
+      
+      throw Exception('$errorCode: $errorMessage');
     }
   }
 
@@ -228,35 +282,18 @@ class ApiService {
     }
   }
 
-  // Get cycle details by ID
-  Future<Map<String, dynamic>> getCycleById(String cycleId) async {
-    try {
-      await _updateAuthHeader();
-      final response = await http.get(
-        Uri.parse('$baseUrl/cycles/$cycleId'),
-        headers: _headers,
-      );
-      return _handleResponse(response);
-    } catch (e) {
-      throw Exception('Failed to get cycle details: $e');
-    }
-  }
-
   // Rent cycle by scanning QR code
-  Future<Map<String, dynamic>> rentCycleByQR(String cycleId) async {
+  static Future<Map<String, dynamic>> rentCycleByQR(String cycleId) async {
     try {
-      await _updateAuthHeader();
-      final response = await http.post(
-        Uri.parse('$baseUrl/rentals/scan-qr'),
-        headers: _headers,
-        body: json.encode({'cycleId': cycleId}),
-      );
-      return _handleResponse(response);
+      await instance._updateAuthHeader();
+      final response = await instance.post('cycles/rent-by-qr', {'cycleId': cycleId});
+      return Map<String, dynamic>.from(response);
     } catch (e) {
       throw Exception('Failed to rent cycle via QR: $e');
     }
   }
-// Toggle cycle status
+
+  // Toggle cycle status
   Future<Map<String, dynamic>> toggleCycleStatus(
     String cycleId, 
     {Map<String, dynamic>? coordinates}
@@ -276,6 +313,7 @@ class ApiService {
       throw Exception('Failed to toggle cycle status: $e');
     }
   }
+
   // rentCycle method
   Future<void> rentCycle(String cycleId) async {
     try {

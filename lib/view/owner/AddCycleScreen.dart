@@ -25,7 +25,7 @@ class _AddCycleScreenState extends State<AddCycleScreen> {
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation(); // Automatically get location when screen opens
+    _getCurrentLocation();
   }
 
   Future<void> _getCurrentLocation() async {
@@ -35,7 +35,6 @@ class _AddCycleScreenState extends State<AddCycleScreen> {
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      // Get address from coordinates
       List<Placemark> placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
@@ -44,7 +43,7 @@ class _AddCycleScreenState extends State<AddCycleScreen> {
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
         String address = '${place.street}, ${place.subLocality}, ${place.locality}';
-        
+
         setState(() {
           _locationController.text = address;
           _selectedCoordinates = {
@@ -79,7 +78,7 @@ class _AddCycleScreenState extends State<AddCycleScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Cycle added successfully')),
           );
-          Navigator.pop(context, true); // Indicate success
+          Navigator.pop(context, true);
         }
       } catch (e) {
         if (mounted) {
@@ -93,128 +92,148 @@ class _AddCycleScreenState extends State<AddCycleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text(
-          'Add New Cycle',
-          style: TextStyle(color: Colors.white),
+    final lightTheme = ThemeData.light().copyWith(
+      scaffoldBackgroundColor: AppColors.background,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.white,
+        iconTheme: IconThemeData(color: Colors.black),
+        titleTextStyle: TextStyle(
+          color: Colors.black,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
         ),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Header Section
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(20),
-                      bottomRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: const Text(
-                    'Enter Cycle Details',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
+      textTheme: ThemeData.light().textTheme.apply(
+        bodyColor: Colors.black,
+        displayColor: Colors.black,
+      ),
+      inputDecorationTheme: const InputDecorationTheme(
+        fillColor: Colors.white,
+        filled: true,
+      ),
+    );
 
-                // Main Form Card
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Padding(
+    return Theme(
+      data: lightTheme,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Add New Cycle'),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
                     padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        _buildTextField(
-                          controller: _brandController,
-                          label: 'Brand',
-                          icon: Icons.branding_watermark,
-                          validator: (value) => value?.isEmpty ?? true ? 'Brand is required' : null,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(20),
+                        bottomRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: const Text(
+                      'Enter Cycle Details',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Form Fields
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          _buildTextField(
+                            controller: _brandController,
+                            label: 'Brand',
+                            icon: Icons.branding_watermark,
+                            validator: (value) =>
+                            value?.isEmpty ?? true ? 'Brand is required' : null,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildTextField(
+                            controller: _modelController,
+                            label: 'Model',
+                            icon: Icons.pedal_bike,
+                            validator: (value) =>
+                            value?.isEmpty ?? true ? 'Model is required' : null,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildDropdownField(),
+                          const SizedBox(height: 16),
+                          _buildTextField(
+                            controller: _hourlyRateController,
+                            label: 'Hourly Rate',
+                            icon: Icons.attach_money,
+                            keyboardType: TextInputType.number,
+                            prefix: '৳ ',
+                            validator: (value) {
+                              if (value?.isEmpty ?? true) return 'Rate is required';
+                              if (double.tryParse(value!) == null) return 'Enter valid amount';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          _buildTextField(
+                            controller: _descriptionController,
+                            label: 'Description',
+                            icon: Icons.description,
+                            maxLines: 3,
+                            validator: (value) =>
+                            value?.isEmpty ?? true ? 'Description is required' : null,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildLocationField(),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Submit Button
+                  ElevatedButton(
+                    onPressed: _submitForm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 2,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.add_circle_outline, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text(
+                          'Add Cycle',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          controller: _modelController,
-                          label: 'Model',
-                          icon: Icons.pedal_bike,
-                          validator: (value) => value?.isEmpty ?? true ? 'Model is required' : null,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildDropdownField(),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          controller: _hourlyRateController,
-                          label: 'Hourly Rate',
-                          icon: Icons.attach_money,
-                          keyboardType: TextInputType.number,
-                          prefix: '৳ ',
-                          validator: (value) {
-                            if (value?.isEmpty ?? true) return 'Rate is required';
-                            if (double.tryParse(value!) == null) return 'Enter valid amount';
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          controller: _descriptionController,
-                          label: 'Description',
-                          icon: Icons.description,
-                          maxLines: 3,
-                          validator: (value) => value?.isEmpty ?? true ? 'Description is required' : null,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildLocationField(),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-
-                // Submit Button
-                ElevatedButton(
-                  onPressed: _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    elevation: 2,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.add_circle_outline, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Add Cycle',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -300,13 +319,13 @@ class _AddCycleScreenState extends State<AddCycleScreen> {
         prefixIcon: Icon(Icons.location_on, color: AppColors.primary),
         suffixIcon: _isLoadingLocation
             ? const Padding(
-                padding: EdgeInsets.all(12),
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+          padding: EdgeInsets.all(12),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        )
             : IconButton(
-                icon: Icon(Icons.my_location, color: AppColors.secondary),
-                onPressed: _getCurrentLocation,
-              ),
+          icon: Icon(Icons.my_location, color: AppColors.secondary),
+          onPressed: _getCurrentLocation,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: AppColors.primary),
@@ -323,7 +342,8 @@ class _AddCycleScreenState extends State<AddCycleScreen> {
         fillColor: Colors.white,
       ),
       readOnly: true,
-      validator: (value) => value?.isEmpty ?? true ? 'Location is required' : null,
+      validator: (value) =>
+      value?.isEmpty ?? true ? 'Location is required' : null,
     );
   }
 

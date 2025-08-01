@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:CycleX/Config/routes/PageConstants.dart';
 import 'package:CycleX/services/api_service.dart';
 import 'package:CycleX/view/QRScannerScreen.dart';
+import 'package:CycleX/view/RentCycle.dart';
 import 'package:intl/intl.dart';
 
 class RenterDashboard extends StatefulWidget {
@@ -85,100 +86,40 @@ class _RenterDashboardState extends State<RenterDashboard> {
     });
 
     try {
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return const Center(
-            child: Card(
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Processing QR Code...'),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
+      // Debug: Print the scanned cycle ID
+      print('🔍 Scanned Cycle ID: $cycleId');
+      
+      // Validate cycle ID format
+      if (cycleId.length != 24) {
+        throw Exception('Invalid cycle ID format. Expected 24 characters, got ${cycleId.length}');
+      }
+      
+      // Debug: Test API call first
+      print('🔍 Testing API call to get cycle details...');
+      try {
+        final cycleResponse = await ApiService.instance.getCycleById(cycleId);
+        print('✅ Cycle details retrieved: ${cycleResponse['cycle']?['brand']} ${cycleResponse['cycle']?['model']}');
+      } catch (apiError) {
+        print('❌ API Error: $apiError');
+        throw Exception('Failed to fetch cycle details: $apiError');
+      }
+
+      // Navigate to RentCycle screen with the scanned cycle ID
+      print('🔍 Navigating to RentCycle screen...');
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RentCycle(cycleId: cycleId),
+        ),
       );
 
-      // First, get cycle details
-      final cycleDetails = await ApiService.instance.getCycleById(cycleId);
-      
-      // Close loading dialog
-      if (mounted) {
-        Navigator.pop(context);
-      }
-
-      // Check if cycle is available for rent
-      if (cycleDetails['isActive'] == true && cycleDetails['isAvailable'] == true) {
-        // Show confirmation dialog
-        final shouldRent = await _showRentConfirmationDialog(cycleDetails);
-        
-        if (shouldRent == true) {
-          // Show processing dialog
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext context) {
-              return const Center(
-                child: Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Renting cycle...'),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          );
-
-          // Rent the cycle
-          final rentalResult = await ApiService.instance.rentCycleByQR(cycleId);
-          
-          // Close processing dialog
-          if (mounted) {
-            Navigator.pop(context);
-          }
-
-          // Show success message
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Successfully rented ${cycleDetails['model']}!'),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-          }
-
-          // Refresh dashboard data to show the new rental
-          await _loadDashboardData();
-        }
-      } else {
-        // Show error message
-        if (mounted) {
-          _showCycleUnavailableDialog(cycleDetails);
-        }
+      // If rental was successful, refresh dashboard data
+      if (result == true) {
+        print('✅ Rental successful, refreshing dashboard...');
+        await _loadDashboardData();
       }
     } catch (e) {
-      // Close loading dialog
-      if (mounted) {
-        Navigator.pop(context);
-      }
-
+      print('❌ Error in _processScannedCode: $e');
       // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

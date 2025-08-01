@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../services/api_service.dart';
+import '../models/cycle.dart';
+import 'RentInProgressScreen.dart';
 
 class RentCycle extends StatefulWidget {
-  final String cycleId;
-  final double hourlyRate;
+  final String cycleId; // This will be passed from QR scanner
 
   const RentCycle({
     Key? key,
     required this.cycleId,
-    required this.hourlyRate,
   }) : super(key: key);
 
   @override
@@ -16,9 +17,295 @@ class RentCycle extends StatefulWidget {
 }
 
 class _RentCycleState extends State<RentCycle> {
-  DateTime _startTime = DateTime.now();
-  int _hours = 1;
+  bool _isLoading = true;
+  bool _isRenting = false;
+  Map<String, dynamic>? _cycleData;
+  String? _errorMessage;
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCycleData();
+  }
+
+  Future<void> _fetchCycleData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      print('🔍 RentCycle: Fetching data for cycle ID: ${widget.cycleId}');
+      print('🔍 RentCycle: Cycle ID length: ${widget.cycleId.length}');
+
+      // Fetch cycle data from backend with retry logic
+      final response = await ApiService.getCycleByIdWithRetry(widget.cycleId, maxRetries: 3);
+      
+      print('🔍 RentCycle: API Response received: ${response.toString()}');
+      
+      if (response['cycle'] != null) {
+        print('✅ RentCycle: Cycle data found successfully');
+        setState(() {
+          _cycleData = response['cycle'];
+          _isLoading = false;
+        });
+      } else {
+        print('❌ RentCycle: No cycle data in response');
+        throw Exception('Cycle data not found in response');
+      }
+    } catch (e) {
+      print('❌ RentCycle: Error fetching cycle data: $e');
+      setState(() {
+        _errorMessage = _getErrorMessage(e.toString());
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _getErrorMessage(String error) {
+    if (error.contains('CYCLE_NOT_FOUND')) {
+      return 'Cycle not found. Please check the QR code.';
+    } else if (error.contains('CYCLE_UNAVAILABLE')) {
+      return 'This cycle is already rented.';
+    } else if (error.contains('CYCLE_INACTIVE')) {
+      return 'This cycle is not available for rent.';
+    } else if (error.contains('INVALID_ID_FORMAT')) {
+      return 'Invalid QR code format.';
+    } else if (error.contains('Network') || error.contains('timeout')) {
+      return 'Network error. Please check your connection and try again.';
+    } else if (error.contains('OWNER_RENTAL_NOT_ALLOWED')) {
+      return 'You cannot rent your own cycle.';
+    } else if (error.contains('ACTIVE_RENTAL_EXISTS')) {
+      return 'You already have an active rental. Please return your current cycle first.';
+    } else {
+      return 'An error occurred. Please try again.';
+    }
+  }
+
+  Future<void> _startRent() async {
+    if (_cycleData == null) return;
+
+    try {
+      setState(() {
+        _isRenting = true;
+      });
+
+      // Call the backend API to rent the cycle
+      final response = await ApiService.rentCycleByQR(widget.cycleId);
+      
+      // Show success dialog
+      _showSuccessDialog(response);
+      
+    } catch (e) {
+      setState(() {
+        _isRenting = false;
+      });
+      
+      // Show error dialog
+      _showErrorDialog(_getErrorMessage(e.toString()));
+    }
+  }
+
+  void _showSuccessDialog(Map<String, dynamic> response) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF17153A),
+        title: Row(
+          children: [
+            Icon(
+              Icons.check_circle,
+              color: Colors.green,
+              size: 28,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Rental Started!',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Cycle: ${_cycleData?['brand']} ${_cycleData?['model']}',
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Start Time: ${DateFormat('MMM dd, yyyy HH:mm').format(DateTime.now())}',
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Rate: ৳${_cycleData?['hourlyRate']}/hour',
+              style: const TextStyle(color: Colors.green),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.green, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Your rental has started successfully! You can now use the cycle.',
+                      style: const TextStyle(color: Colors.green, fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context, true); // Go back to previous screen with success result
+              // Navigate to rent in progress screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const RentInProgressScreen(),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF17153A),
+        title: Row(
+          children: [
+            Icon(
+              Icons.error,
+              color: Colors.red,
+              size: 28,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Rental Error',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              message,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            _buildErrorSuggestions(message),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'OK',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+          if (message.contains('Network') || message.contains('try again'))
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _startRent();
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: const Text('Retry'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorSuggestions(String message) {
+    List<String> suggestions = [];
+    
+    if (message.contains('already rented')) {
+      suggestions = [
+        '• Try finding another available cycle nearby',
+        '• Wait a few minutes and try again',
+        '• Check the app for other available cycles',
+      ];
+    } else if (message.contains('not available')) {
+      suggestions = [
+        '• The owner may have deactivated this cycle',
+        '• Try looking for other cycles in the area',
+        '• Contact support if this persists',
+      ];
+    } else if (message.contains('Network')) {
+      suggestions = [
+        '• Check your internet connection',
+        '• Try moving to an area with better signal',
+        '• Restart the app and try again',
+      ];
+    } else if (message.contains('own cycle')) {
+      suggestions = [
+        '• You cannot rent cycles you own',
+        '• Use the owner dashboard to manage your cycles',
+        '• Look for cycles owned by other users',
+      ];
+    } else if (message.contains('active rental')) {
+      suggestions = [
+        '• Return your current rental first',
+        '• Check your active rentals in the dashboard',
+        '• Contact support if you need help',
+      ];
+    }
+
+    if (suggestions.isEmpty) return SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Suggestions:',
+          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 8),
+        ...suggestions.map((s) => Padding(
+          padding: EdgeInsets.only(bottom: 4),
+          child: Text(
+            s,
+            style: TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+        )),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,289 +314,439 @@ class _RentCycleState extends State<RentCycle> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Rent a Cycle'),
+        title: const Text(
+          'Rent Cycle',
+          style: TextStyle(color: Colors.white),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: _isLoading
+          ? _buildLoadingView()
+          : _errorMessage != null
+              ? _buildErrorView()
+              : _buildCycleDetailsView(),
+    );
+  }
+
+  Widget _buildLoadingView() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Loading cycle details...',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 80,
+              color: Colors.red.withOpacity(0.7),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Oops!',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage!,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Cycle Image and Details Card
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Cycle Image
-                      Container(
-                        height: 200,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          image: const DecorationImage(
-                            image: AssetImage('assets/images/cycle_placeholder.png'),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Cycle Details
-                      Text(
-                        'Cycle #${widget.cycleId}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '৳${widget.hourlyRate}/hour',
-                        style: const TextStyle(
-                          color: Colors.green,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Rental Details
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Rental Details',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Start Time
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.access_time, color: Colors.white),
-                        title: const Text(
-                          'Start Time',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        subtitle: Text(
-                          DateFormat('MMM dd, yyyy HH:mm').format(_startTime),
-                          style: TextStyle(color: Colors.white.withOpacity(0.7)),
-                        ),
-                        trailing: TextButton(
-                          onPressed: () async {
-                            final DateTime? picked = await showDateTimePicker(
-                              context: context,
-                              initialDate: _startTime,
-                            );
-                            if (picked != null) {
-                              setState(() => _startTime = picked);
-                            }
-                          },
-                          child: const Text('Change'),
-                        ),
-                      ),
-                      // Duration
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.timer, color: Colors.white),
-                        title: const Text(
-                          'Duration',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        subtitle: Text(
-                          '$_hours hour${_hours > 1 ? 's' : ''}',
-                          style: TextStyle(color: Colors.white.withOpacity(0.7)),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove, color: Colors.white),
-                              onPressed: () {
-                                if (_hours > 1) {
-                                  setState(() => _hours--);
-                                }
-                              },
-                            ),
-                            Text(
-                              '$_hours',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.add, color: Colors.white),
-                              onPressed: () {
-                                setState(() => _hours++);
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Total Cost Card
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total Cost',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                        ),
-                      ),
-                      Text(
-                        '৳${(widget.hourlyRate * _hours).toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: Colors.green,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Rent Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                ElevatedButton(
+                  onPressed: _fetchCycleData,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
                     ),
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        // Process rental
-                        _showConfirmationDialog();
-                      }
-                    },
-                    child: const Text(
-                      'Rent Now',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Try Again',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Go Back',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showConfirmationDialog() async {
-    return showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Rental'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Cycle: #${widget.cycleId}'),
-            Text('Start: ${DateFormat('MMM dd, yyyy HH:mm').format(_startTime)}'),
-            Text('Duration: $_hours hours'),
-            Text('Total: ৳${(widget.hourlyRate * _hours).toStringAsFixed(2)}'),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // Process payment and rental
-              Navigator.pop(context);
-              _showSuccessDialog();
-            },
-            child: const Text('Confirm'),
-          ),
-        ],
       ),
     );
   }
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Success!'),
-        content: const Text('Your cycle has been rented successfully.'),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: const Text('OK'),
+  Widget _buildCycleDetailsView() {
+    if (_cycleData == null) return _buildErrorView();
+
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Cycle Image and Details Card
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Cycle Image
+                    Container(
+                      height: 200,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.grey.withOpacity(0.3),
+                      ),
+                      child: _cycleData?['images'] != null && 
+                             (_cycleData!['images'] as List).isNotEmpty
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                _cycleData!['images'][0],
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return _buildPlaceholderImage();
+                                },
+                              ),
+                            )
+                          : _buildPlaceholderImage(),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Cycle Details
+                    Text(
+                      '${_cycleData?['brand'] ?? 'Unknown'} ${_cycleData?['model'] ?? 'Cycle'}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    // Condition
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getConditionColor(_cycleData?['condition']),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _cycleData?['condition'] ?? 'Unknown',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Price
+                    Row(
+                      children: [
+                        Text(
+                          '৳${_cycleData?['hourlyRate']?.toStringAsFixed(2) ?? '0.00'}/hour',
+                          style: const TextStyle(
+                            color: Colors.green,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.green),
+                          ),
+                          child: const Text(
+                            'Available',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Location Card
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Location',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on,
+                          color: Colors.green,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _cycleData?['location'] ?? 'Location not specified',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Description Card
+              if (_cycleData?['description'] != null)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Description',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _cycleData?['description'] ?? '',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_cycleData?['description'] != null) const SizedBox(height: 24),
+
+              // Start Rent Button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4,
+                  ),
+                  onPressed: _isRenting ? null : _startRent,
+                  child: _isRenting
+                      ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Starting Rental...',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        )
+                      : const Text(
+                          'Start Rent',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Terms and conditions
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.orange,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'By starting the rental, you agree to return the cycle in the same condition.',
+                        style: TextStyle(
+                          color: Colors.orange.withOpacity(0.9),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
-}
 
-Future<DateTime?> showDateTimePicker({
-  required BuildContext context,
-  required DateTime initialDate,
-}) async {
-  final DateTime? date = await showDatePicker(
-    context: context,
-    initialDate: initialDate,
-    firstDate: DateTime.now(),
-    lastDate: DateTime.now().add(const Duration(days: 7)),
-  );
-  if (date == null) return null;
+  Widget _buildPlaceholderImage() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey.withOpacity(0.3),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.directions_bike,
+              size: 60,
+              color: Colors.white,
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Cycle Image',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-  final TimeOfDay? time = await showTimePicker(
-    context: context,
-    initialTime: TimeOfDay.fromDateTime(initialDate),
-  );
-  if (time == null) return null;
-
-  return DateTime(
-    date.year,
-    date.month,
-    date.day,
-    time.hour,
-    time.minute,
-  );
+  Color _getConditionColor(String? condition) {
+    switch (condition?.toLowerCase()) {
+      case 'excellent':
+        return Colors.green;
+      case 'good':
+        return Colors.blue;
+      case 'fair':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
 } 

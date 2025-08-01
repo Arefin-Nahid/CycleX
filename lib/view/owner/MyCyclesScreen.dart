@@ -18,6 +18,7 @@ class MyCyclesScreen extends StatefulWidget {
 class _MyCyclesScreenState extends State<MyCyclesScreen> {
   List<Map<String, dynamic>> cycles = [];
   bool isLoading = true;
+  bool isProcessingAction = false;
 
   @override
   void initState() {
@@ -27,6 +28,10 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
 
   Future<void> _loadCycles() async {
     try {
+      setState(() {
+        isLoading = true;
+      });
+      
       final data = await ApiService.instance.getMyCycles();
       setState(() {
         cycles = data;
@@ -35,11 +40,34 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
     } catch (e) {
       setState(() => isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        _showErrorSnackBar('Error loading cycles: ${e.toString()}');
       }
     }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'Retry',
+          textColor: Colors.white,
+          onPressed: _loadCycles,
+        ),
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 
   Future<bool> requestStoragePermission() async {
@@ -60,9 +88,7 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
     try {
       bool granted = await requestStoragePermission();
       if (!granted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Storage permission denied')),
-        );
+        _showErrorSnackBar('Storage permission denied');
         return;
       }
 
@@ -98,21 +124,112 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
         );
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('QR Code saved to Downloads:\nqr_$cycleId.png')),
-          );
+          _showSuccessSnackBar('QR Code saved to Downloads:\nqr_$cycleId.png');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating QR code: $e')),
-        );
+        _showErrorSnackBar('Error generating QR code: $e');
       }
     }
   }
 
+  Future<void> _showQRCodePreview(String cycleId, Map<String, dynamic> cycle) async {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.qr_code, color: Colors.teal, size: 24),
+                  SizedBox(width: 12),
+                  Text(
+                    'QR Code for Cycle',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16),
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+                ),
+                child: QrImageView(
+                  data: cycleId,
+                  version: QrVersions.auto,
+                  size: 200.0,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                '${cycle['brand']} ${cycle['model']}',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 8),
+              Text(
+                'ID: ${cycleId.substring(0, 8)}...',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+              SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _downloadQRCode(cycleId);
+                    },
+                    icon: Icon(Icons.download),
+                    label: Text('Download'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _shareQRCode(cycleId);
+                    },
+                    icon: Icon(Icons.share),
+                    label: Text('Share'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _shareQRCode(String cycleId) async {
+    // TODO: Implement share functionality
+    _showSuccessSnackBar('Share functionality coming soon!');
+  }
+
   Future<void> _toggleCycleStatus(String cycleId, bool currentStatus) async {
+    if (isProcessingAction) return;
+
+    setState(() {
+      isProcessingAction = true;
+    });
+
     try {
       Map<String, dynamic>? coordinates;
       if (!currentStatus) {
@@ -133,10 +250,11 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
           };
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Error getting location. Please try again.')),
-            );
+            _showErrorSnackBar('Error getting location. Please try again.');
           }
+          setState(() {
+            isProcessingAction = false;
+          });
           return;
         }
       }
@@ -144,20 +262,18 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
       await ApiService.instance.toggleCycleStatus(cycleId, coordinates: coordinates);
       await _loadCycles();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(currentStatus
-                ? 'Cycle activated and location updated'
-                : 'Cycle deactivated'),
-          ),
-        );
+        _showSuccessSnackBar(currentStatus
+            ? 'Cycle activated and location updated'
+            : 'Cycle deactivated');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        _showErrorSnackBar('Error: ${e.toString()}');
       }
+    } finally {
+      setState(() {
+        isProcessingAction = false;
+      });
     }
   }
 
@@ -166,16 +282,24 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
       bool confirm = await showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Delete Cycle'),
-          content: const Text('Are you sure you want to delete this cycle?'),
+          backgroundColor: Colors.white,
+          title: Row(
+            children: [
+              Icon(Icons.delete, color: Colors.red, size: 24),
+              SizedBox(width: 12),
+              Text('Delete Cycle', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text('Are you sure you want to delete this cycle? This action cannot be undone.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              child: Text('Cancel'),
             ),
-            TextButton(
+            ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: Text('Delete'),
             ),
           ],
         ),
@@ -185,16 +309,12 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
         await ApiService.instance.deleteCycle(cycleId);
         _loadCycles();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cycle deleted successfully')),
-          );
+          _showSuccessSnackBar('Cycle deleted successfully');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting cycle: $e')),
-        );
+        _showErrorSnackBar('Error deleting cycle: $e');
       }
     }
   }
@@ -203,79 +323,176 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Cycles'),
+        title: Text('My Cycles'),
         backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
+        actions: [
+          if (isProcessingAction)
+            Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+            ),
+        ],
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Colors.teal),
+                  SizedBox(height: 16),
+                  Text('Loading your cycles...'),
+                ],
+              ),
+            )
           : cycles.isEmpty
-          ? const Center(child: Text('No cycles found'))
-          : ListView.builder(
-        itemCount: cycles.length,
-        itemBuilder: (context, index) {
-          final cycle = cycles[index];
-          return Card(
-            margin: const EdgeInsets.all(8),
-            child: Column(
-              children: [
-                ListTile(
-                  title: Text('${cycle['brand']} ${cycle['model']}'),
-                  subtitle: Text(
-                    'Condition: ${cycle['condition']}\n'
-                        'Rate: ৳${cycle['hourlyRate']}/hour\n'
-                        'Location: ${cycle['location']}',
-                  ),
-                  trailing: PopupMenuButton(
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        child: ListTile(
-                          leading: const Icon(Icons.qr_code),
-                          title: const Text('Download QR'),
-                          onTap: () {
-                            Navigator.pop(context);
-                            _downloadQRCode(cycle['_id']);
-                          },
-                        ),
-                      ),
-                      PopupMenuItem(
-                        child: ListTile(
-                          leading: const Icon(Icons.delete, color: Colors.red),
-                          title: const Text('Delete', style: TextStyle(color: Colors.red)),
-                          onTap: () {
-                            Navigator.pop(context);
-                            _deleteCycle(cycle['_id']);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      Icon(
+                        Icons.directions_bike_outlined,
+                        size: 80,
+                        color: Colors.grey[400],
+                      ),
+                      SizedBox(height: 16),
                       Text(
-                        cycle['isActive'] ? 'Active' : 'Inactive',
+                        'No cycles found',
                         style: TextStyle(
-                          color: cycle['isActive'] ? Colors.green : Colors.grey,
+                          fontSize: 18,
+                          color: Colors.grey[600],
                         ),
                       ),
-                      Switch(
-                        value: cycle['isActive'],
-                        onChanged: cycle['isRented']
-                            ? null
-                            : (value) => _toggleCycleStatus(cycle['_id'], value),
-                        activeColor: Colors.teal,
+                      SizedBox(height: 8),
+                      Text(
+                        'Add your first cycle to get started',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                        ),
                       ),
                     ],
                   ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadCycles,
+                  child: ListView.builder(
+                    itemCount: cycles.length,
+                    itemBuilder: (context, index) {
+                      final cycle = cycles[index];
+                      return Card(
+                        margin: EdgeInsets.all(8),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            ListTile(
+                              title: Text(
+                                '${cycle['brand']} ${cycle['model']}',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Condition: ${cycle['condition']}',
+                                    style: TextStyle(color: Colors.grey[600]),
+                                  ),
+                                  Text(
+                                    'Rate: ৳${cycle['hourlyRate']}/hour',
+                                    style: TextStyle(color: Colors.green, fontWeight: FontWeight.w500),
+                                  ),
+                                  Text(
+                                    'Location: ${cycle['location']}',
+                                    style: TextStyle(color: Colors.grey[600]),
+                                  ),
+                                ],
+                              ),
+                              trailing: PopupMenuButton(
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    child: ListTile(
+                                      leading: Icon(Icons.qr_code, color: Colors.teal),
+                                      title: Text('Preview QR'),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        _showQRCodePreview(cycle['_id'], cycle);
+                                      },
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    child: ListTile(
+                                      leading: Icon(Icons.download, color: Colors.blue),
+                                      title: Text('Download QR'),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        _downloadQRCode(cycle['_id']);
+                                      },
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    child: ListTile(
+                                      leading: Icon(Icons.delete, color: Colors.red),
+                                      title: Text('Delete', style: TextStyle(color: Colors.red)),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        _deleteCycle(cycle['_id']);
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        cycle['isActive'] ? 'Active' : 'Inactive',
+                                        style: TextStyle(
+                                          color: cycle['isActive'] ? Colors.green : Colors.grey,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      if (cycle['isRented'])
+                                        Text(
+                                          'Currently Rented',
+                                          style: TextStyle(
+                                            color: Colors.orange,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  Switch(
+                                    value: cycle['isActive'],
+                                    onChanged: cycle['isRented']
+                                        ? null
+                                        : (value) => _toggleCycleStatus(cycle['_id'], value),
+                                    activeColor: Colors.teal,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ],
-            ),
-          );
-        },
-      ),
     );
   }
 }

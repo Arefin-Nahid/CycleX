@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../services/api_service.dart';
 
 class QRScannerScreen extends StatefulWidget {
   const QRScannerScreen({Key? key}) : super(key: key);
@@ -13,6 +14,8 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   MobileScannerController? controller;
   bool isScanning = true;
   bool hasPermission = false;
+  bool isValidating = false;
+  String? validationStatus;
 
   final Color primaryColor = const Color(0xFF17153A);
   final Color accentColor = const Color(0xFF00D0C3);
@@ -41,21 +44,33 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Camera Permission Required'),
-          content: const Text(
+          backgroundColor: primaryColor,
+          title: Row(
+            children: [
+              Icon(Icons.camera_alt, color: accentColor, size: 28),
+              SizedBox(width: 12),
+              Text(
+                'Camera Permission Required',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Text(
             'This app needs camera permission to scan QR codes. Please grant camera permission in settings.',
+            style: TextStyle(color: Colors.white),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text('Cancel', style: TextStyle(color: Colors.white)),
             ),
-            TextButton(
+            ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
                 openAppSettings();
               },
-              child: const Text('Open Settings'),
+              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
+              child: Text('Open Settings'),
             ),
           ],
         );
@@ -78,27 +93,226 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     }
   }
 
-  void _handleScannedCode(String code) {
+  void _handleScannedCode(String code) async {
     setState(() {
       isScanning = false;
+      isValidating = true;
+      validationStatus = 'Validating QR code...';
     });
 
     // Stop scanning
     controller?.stop();
 
-    // Show loading dialog
+    print('🔍 QR Scanner detected code: $code');
+    print('🔍 Code length: ${code.length}');
+
+    try {
+      // Validate cycle ID format first
+      if (code.length != 24) {
+        throw Exception('INVALID_ID_FORMAT');
+      }
+
+      setState(() {
+        validationStatus = 'Checking cycle availability...';
+      });
+
+      // Pre-validate the QR code by fetching cycle details
+      await ApiService.instance.getCycleById(code);
+      
+      setState(() {
+        isValidating = false;
+      });
+
+      // Return the valid code to the previous screen
+      print('✅ QR code validated successfully');
+      Navigator.pop(context, code);
+      
+    } catch (e) {
+      setState(() {
+        isValidating = false;
+      });
+      
+      print('❌ QR validation failed: $e');
+      _showErrorDialog(_getErrorMessage(e.toString()));
+    }
+  }
+
+  String _getErrorMessage(String error) {
+    if (error.contains('CYCLE_NOT_FOUND')) {
+      return 'CYCLE_NOT_FOUND';
+    } else if (error.contains('CYCLE_UNAVAILABLE')) {
+      return 'CYCLE_UNAVAILABLE';
+    } else if (error.contains('CYCLE_INACTIVE')) {
+      return 'CYCLE_INACTIVE';
+    } else if (error.contains('INVALID_ID_FORMAT')) {
+      return 'INVALID_ID_FORMAT';
+    } else if (error.contains('Network') || error.contains('timeout')) {
+      return 'NETWORK_ERROR';
+    } else {
+      return 'UNKNOWN_ERROR';
+    }
+  }
+
+  void _showErrorDialog(String errorType) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
-      },
+      builder: (context) => AlertDialog(
+        backgroundColor: primaryColor,
+        title: Row(
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Colors.red,
+              size: 28,
+            ),
+            SizedBox(width: 12),
+            Text(
+              'QR Code Issue',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _getFriendlyErrorMessage(errorType),
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            SizedBox(height: 16),
+            _buildErrorSuggestions(errorType),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => _reportInvalidQR(errorType),
+            child: Text(
+              'Report Issue',
+              style: TextStyle(color: Colors.orange),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _restartScanning();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: accentColor),
+            child: Text('Scan Again'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
     );
+  }
 
-    // Return the scanned code to the previous screen
-    Navigator.pop(context, code);
+  String _getFriendlyErrorMessage(String errorType) {
+    switch (errorType) {
+      case 'CYCLE_NOT_FOUND':
+        return 'This QR code doesn\'t match any available cycles.';
+      case 'CYCLE_INACTIVE':
+        return 'This cycle is currently not available for rent.';
+      case 'CYCLE_UNAVAILABLE':
+        return 'This cycle is already being used by someone else.';
+      case 'INVALID_ID_FORMAT':
+        return 'Invalid QR code format. Please scan a valid CycleX QR code.';
+      case 'NETWORK_ERROR':
+        return 'Network connection issue. Please check your internet connection.';
+      default:
+        return 'Unable to process this QR code. Please try again.';
+    }
+  }
+
+  Widget _buildErrorSuggestions(String errorType) {
+    List<String> suggestions = [];
+    
+    switch (errorType) {
+      case 'CYCLE_NOT_FOUND':
+        suggestions = [
+          '• Make sure you\'re scanning a CycleX QR code',
+          '• Check if the QR code is clear and not damaged',
+          '• Try scanning from a different angle',
+        ];
+        break;
+      case 'CYCLE_INACTIVE':
+        suggestions = [
+          '• Try looking for another available cycle nearby',
+          '• The owner may have deactivated this cycle',
+          '• Check if there are other cycles in the area',
+        ];
+        break;
+      case 'CYCLE_UNAVAILABLE':
+        suggestions = [
+          '• This cycle is currently in use',
+          '• Try finding another available cycle',
+          '• Wait a few minutes and try again',
+        ];
+        break;
+      case 'NETWORK_ERROR':
+        suggestions = [
+          '• Check your internet connection',
+          '• Try moving to an area with better signal',
+          '• Restart the app and try again',
+        ];
+        break;
+      case 'INVALID_ID_FORMAT':
+        suggestions = [
+          '• Ensure you\'re scanning a valid CycleX QR code',
+          '• Check if the QR code is complete and undamaged',
+          '• Try scanning from a closer distance',
+        ];
+        break;
+    }
+
+    if (suggestions.isEmpty) return SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Suggestions:',
+          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 8),
+        ...suggestions.map((s) => Padding(
+          padding: EdgeInsets.only(bottom: 4),
+          child: Text(
+            s,
+            style: TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+        )),
+      ],
+    );
+  }
+
+  void _reportInvalidQR(String errorType) {
+    // TODO: Implement QR reporting functionality
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Thank you for reporting this issue. We\'ll investigate.'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    Navigator.pop(context);
+  }
+
+  void _restartScanning() {
+    setState(() {
+      isScanning = true;
+      isValidating = false;
+      validationStatus = null;
+    });
+    controller?.start();
   }
 
   void _toggleFlash() async {
@@ -124,7 +338,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                   size: 80,
                   color: Colors.white.withOpacity(0.7),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
                 Text(
                   'Camera Permission Required',
                   style: TextStyle(
@@ -133,7 +347,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text(
                   'Please grant camera permission to scan QR codes',
                   style: TextStyle(
@@ -142,13 +356,13 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 32),
+                SizedBox(height: 32),
                 ElevatedButton(
                   onPressed: () => openAppSettings(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: accentColor,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
+                    padding: EdgeInsets.symmetric(
                       horizontal: 32,
                       vertical: 16,
                     ),
@@ -156,7 +370,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Open Settings',
                     style: TextStyle(
                       fontSize: 16,
@@ -185,18 +399,18 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           // Header
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: EdgeInsets.all(16.0),
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.arrow_back_ios,
                       color: Colors.white,
                       size: 28,
                     ),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Scan QR Code',
                       style: TextStyle(
@@ -207,7 +421,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(width: 48), // Balance the header
+                  SizedBox(width: 48), // Balance the header
                 ],
               ),
             ),
@@ -219,7 +433,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             left: 0,
             right: 0,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+              padding: EdgeInsets.symmetric(horizontal: 32),
               child: Text(
                 'Point your camera at the cycle\'s QR code',
                 style: TextStyle(
@@ -251,6 +465,40 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
               ],
             ),
           ),
+
+          // Validation overlay
+          if (isValidating)
+            Container(
+              color: Colors.black.withOpacity(0.8),
+              child: Center(
+                child: Card(
+                  color: primaryColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          validationStatus ?? 'Validating QR code...',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -269,7 +517,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         icon: Icon(icon, color: Colors.white, size: 28),
         onPressed: onPressed,
         style: IconButton.styleFrom(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
         ),
       ),
     );
