@@ -1610,7 +1610,7 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
         final completedRental = response['rental'] ?? rental;
         final amount = (completedRental['totalCost'] ?? 0.0).toDouble();
         
-        Navigator.push(
+        final result = await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => PaymentScreen(
@@ -1619,6 +1619,16 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
             ),
           ),
         );
+        
+        print('🔄 Payment result received: $result');
+        
+        // Check if payment was successful and refresh is needed
+        if (mounted && result != null && result is Map && result['refresh'] == true) {
+          print('✅ Refresh flag detected, starting dashboard refresh...');
+          await _refreshDashboardData();
+        } else {
+          print('❌ No refresh flag or invalid result: $result');
+        }
       }
     } catch (e) {
       // Close loading dialog if still open
@@ -1656,6 +1666,30 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
       MaterialPageRoute(
         builder: (context) => const RentInProgressScreen(),
       ),
-    );
+    ).then((result) async {
+      print('🔄 RentInProgressScreen result received: $result');
+      
+      // Check if refresh is needed when returning from RentInProgressScreen
+      if (mounted && result != null && result is Map && result['refresh'] == true) {
+        print('✅ Refresh flag detected from RentInProgressScreen, starting dashboard refresh...');
+        await _refreshDashboardData();
+      } else {
+        print('❌ No refresh flag from RentInProgressScreen or invalid result: $result');
+      }
+    });
+  }
+
+  Future<void> _refreshDashboardData() async {
+    try {
+      print('🔄 Starting dashboard refresh...');
+      
+      // Refresh data silently without any visual indicators
+      await _loadDashboardData();
+      
+      print('✅ Dashboard refresh completed');
+      
+    } catch (e) {
+      print('❌ Error refreshing dashboard: $e');
+    }
   }
 } 

@@ -178,10 +178,19 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
   }
 
   // ---- SMALLER Stats Card ----
-  Widget _buildStatsCard(String title, String value, IconData icon, Color color, {String? subtitle}) {
+  Widget _buildStatsCard(
+      String title,
+      String value,
+      IconData icon,
+      Color color, {
+        String? subtitle,
+      }) {
+    // Use a higher contrast color for text/icons
+    final Color foregroundColor = Colors.teal.shade800; // or Colors.black87
+
     return Container(
-      margin: const EdgeInsets.all(2), // smaller margin
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), // smaller padding
+      margin: const EdgeInsets.all(2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -191,7 +200,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
             color.withOpacity(0.7),
           ],
         ),
-        borderRadius: BorderRadius.circular(14), // less rounded
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white.withOpacity(0.7), width: 1),
         boxShadow: [
           BoxShadow(
@@ -208,12 +217,12 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(4), // smaller
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.18),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(icon, color: Colors.white, size: 14), // smaller icon
+                child: Icon(icon, color: foregroundColor, size: 14), // DARKER ICON
               ),
               const Spacer(),
               if (subtitle != null)
@@ -225,8 +234,8 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                   ),
                   child: Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: foregroundColor, // DARKER TEXT
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
                     ),
@@ -234,21 +243,21 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                 ),
             ],
           ),
-          const SizedBox(height: 6), // less space
+          const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 14, // smaller font
+            style: TextStyle(
+              fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: foregroundColor, // DARKER TEXT
             ),
           ),
           const SizedBox(height: 1),
           Text(
             title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 9, // smaller font
+            style: TextStyle(
+              color: foregroundColor, // DARKER TEXT
+              fontSize: 9,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -682,7 +691,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                             'Total Rides',
                             _stats['totalRides'].toString(),
                             Icons.directions_bike_rounded,
-                            Colors.blue,
+                            Colors.grey[100]!,
                           ),
                         ),
                         Expanded(
@@ -690,7 +699,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                             'Total Spent',
                             _formatCurrency(_stats['totalSpent']),
                             Icons.account_balance_wallet_rounded,
-                            Colors.green,
+                            Colors.grey[100]!,
                           ),
                         ),
                       ],
@@ -702,7 +711,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                             'Total Distance',
                             _formatDistance(_stats['totalDistance']),
                             Icons.straighten_rounded,
-                            Colors.orange,
+                            Colors.grey[100]!,
                           ),
                         ),
                         Expanded(
@@ -710,7 +719,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                             'Total Time',
                             _formatDuration(_stats['totalTime']),
                             Icons.timer_rounded,
-                            Colors.purple,
+                            Colors.grey[100]!,
                           ),
                         ),
                       ],

@@ -418,6 +418,20 @@ class ApiService {
     }
   }
 
+  // Get rental by ID
+  static Future<Map<String, dynamic>?> getRentalById(String rentalId) async {
+    try {
+      await instance._updateAuthHeader();
+      final response = await instance.get('rentals/$rentalId')
+          .timeout(Duration(seconds: 10)); // Add 10 second timeout
+      return response;
+    } catch (e) {
+      print('Error getting rental by ID: $e');
+      // Return null instead of throwing to allow fallback
+      return null;
+    }
+  }
+
   // rentCycle method
   Future<Map<String, dynamic>> rentCycle(String cycleId) async {
     try {

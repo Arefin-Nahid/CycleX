@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
+import 'PaymentScreen.dart';
 
 class RentInProgressScreen extends StatefulWidget {
   const RentInProgressScreen({Key? key}) : super(key: key);
@@ -125,18 +126,67 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
           _isEndingRental = true;
         });
 
+        // Show loading indicator
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.green)),
+                const SizedBox(height: 16),
+                const Text(
+                  'Ending your ride...',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+        );
+
         // Call the API to end the rental
         final rentalId = _activeRental!['_id'] ?? _activeRental!['id'];
-        await ApiService.endRental(rentalId);
+        final response = await ApiService.endRental(rentalId);
+        
+        // Close loading dialog
+        if (mounted) Navigator.of(context).pop();
         
         if (mounted) {
-          _showSuccessDialog();
+          // Navigate directly to payment screen like RenterDashboard
+          final completedRental = response['rental'] ?? _activeRental!;
+          final amount = (completedRental['totalCost'] ?? 0.0).toDouble();
+          
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PaymentScreen(
+                rental: completedRental,
+                amount: amount,
+              ),
+            ),
+          );
+          
+          // Check if payment was successful and refresh is needed
+          if (mounted && result != null && result is Map && result['refresh'] == true) {
+            Navigator.pop(context, {'refresh': true});
+          }
         }
       }
     } catch (e) {
       setState(() {
         _isEndingRental = false;
       });
+      
+      // Close loading dialog if still open
+      if (mounted) {
+        try {
+          Navigator.of(context).pop();
+        } catch (e) {
+          // Dialog might already be closed
+        }
+      }
       
       if (mounted) {
         _showErrorDialog(_getErrorMessage(e.toString()));
@@ -169,14 +219,15 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
             Icon(
               Icons.check_circle,
               color: Colors.green,
-              size: 28,
+              size: 24, // reduced from 28
             ),
-            SizedBox(width: 8),
+            SizedBox(width: 6), // reduced from 8
             Text(
               'Rental Ended!',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
+                fontSize: 18, // reduced from default
               ),
             ),
           ],
@@ -187,24 +238,24 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
           children: [
             Text(
               'Your rental has been successfully ended.',
-              style: TextStyle(color: Colors.white, fontSize: 16),
+              style: TextStyle(color: Colors.white, fontSize: 14), // reduced from 16
             ),
-            SizedBox(height: 16),
+            SizedBox(height: 12), // reduced from 16
             Container(
-              padding: EdgeInsets.all(12),
+              padding: EdgeInsets.all(10), // reduced from 12
               decoration: BoxDecoration(
                 color: Colors.green.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6), // reduced from 8
                 border: Border.all(color: Colors.green.withOpacity(0.3)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.green, size: 20),
-                  SizedBox(width: 8),
+                  Icon(Icons.info_outline, color: Colors.green, size: 16), // reduced from 20
+                  SizedBox(width: 6), // reduced from 8
                   Expanded(
                     child: Text(
-                      'Thank you for using CycleX! Please ensure the cycle is safely returned.',
-                      style: TextStyle(color: Colors.green, fontSize: 14),
+                      'Thank you for using CycleX! Please proceed to payment.',
+                      style: TextStyle(color: Colors.green, fontSize: 12), // reduced from 14
                     ),
                   ),
                 ],
@@ -214,19 +265,115 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
         ),
         actions: [
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Go back to previous screen
+              
+              // Show loading indicator
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => AlertDialog(
+                  backgroundColor: const Color(0xFF17153A),
+                  content: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Text(
+                        'Preparing payment...',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+              
+              // Get the actual rental cost from backend with timeout
+              try {
+                final rentalId = _activeRental!['_id'] ?? _activeRental!['id'];
+                
+                // Add timeout to the API call
+                final rentalDetails = await ApiService.getRentalById(rentalId)
+                    .timeout(Duration(seconds: 5));
+                
+                Navigator.pop(context); // Close loading dialog
+                
+                if (mounted && rentalDetails != null) {
+                  final actualAmount = rentalDetails['totalCost']?.toDouble() ?? 0.0;
+                  
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PaymentScreen(
+                        rental: _activeRental!,
+                        amount: actualAmount,
+                      ),
+                    ),
+                  );
+                } else {
+                  // Fallback to client-side calculation
+                  _navigateToPaymentWithCalculatedAmount();
+                }
+              } catch (e) {
+                print('Error getting rental details: $e');
+                Navigator.pop(context); // Close loading dialog
+                
+                // Fallback to client-side calculation
+                _navigateToPaymentWithCalculatedAmount();
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), // reduced padding
             ),
-            child: Text('Done'),
+            child: Text('Proceed to Payment', style: TextStyle(fontSize: 14)), // reduced font size
           ),
         ],
       ),
     );
+  }
+
+  void _navigateToPaymentWithCalculatedAmount() {
+    try {
+      final cycle = _activeRental!['cycle'] as Map<String, dynamic>?;
+      final startTime = DateTime.parse(_activeRental!['startTime']);
+      final duration = DateTime.now().difference(startTime);
+      final hourlyRate = cycle?['hourlyRate'] ?? 0.0;
+      final calculatedAmount = (duration.inMinutes / 60) * hourlyRate;
+      
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentScreen(
+              rental: _activeRental!,
+              amount: calculatedAmount,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error in fallback calculation: $e');
+      // Final fallback with default amount
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentScreen(
+              rental: _activeRental!,
+              amount: 0.0,
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _showErrorDialog(String message) {
@@ -271,9 +418,9 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF17153A),
+      backgroundColor: Colors.white, // Changed to white
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.teal.shade700, // Keep app bar teal for consistency
         elevation: 0,
         title: const Text(
           'Rent In Progress',
@@ -384,46 +531,83 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
 
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(12.0), // reduced from 16.0
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Status Card
             Container(
+              height: 100,
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.2),
+                gradient: LinearGradient(
+                  colors: [Colors.green.shade100, Colors.green.shade50],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.green),
+                border: Border.all(color: Colors.green.shade300, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.green.withOpacity(0.07),
+                    blurRadius: 8,
+                    offset: Offset(0, 3),
+                  ),
+                ],
               ),
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.directions_bike,
-                    color: Colors.green,
-                    size: 32,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade200,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.green.withOpacity(0.15),
+                          blurRadius: 6,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    padding: EdgeInsets.all(10),
+                    child: Icon(
+                      Icons.directions_bike,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           '${cycle?['brand'] ?? 'Unknown'} ${cycle?['model'] ?? 'Cycle'}',
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Rental in progress',
-                          style: TextStyle(
                             color: Colors.green,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.1,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(Icons.fiber_manual_record, color: Colors.green, size: 12),
+                            SizedBox(width: 6),
+                            Text(
+                              'Rental in progress',
+                              style: TextStyle(
+                                color: Colors.green.shade700,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -431,34 +615,35 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 24), // reduced from 24
 
             // Timer Card
             Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.grey.shade50, // Changed to light grey
+                borderRadius: BorderRadius.circular(12), // reduced from 16
+                border: Border.all(color: Colors.grey.shade200),
               ),
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(14), // reduced from 20
               child: Column(
                 children: [
                   const Text(
                     'Rental Duration',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
+                      color: Colors.black, // Changed from white to black
+                      fontSize: 14, // reduced from 16
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12), // reduced from 16
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _buildTimeUnit('Hours', hours.toString()),
                       Container(
                         width: 1,
-                        height: 40,
-                        color: Colors.white.withOpacity(0.3),
+                        height: 32, // reduced from 40
+                        color: Colors.grey.shade300, // Changed from white to grey
                       ),
                       _buildTimeUnit('Minutes', minutes.toString()),
                     ],
@@ -466,27 +651,28 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16), // reduced from 24
 
             // Cost Card
             Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.grey.shade50, // Changed to light grey
+                borderRadius: BorderRadius.circular(12), // reduced from 16
+                border: Border.all(color: Colors.grey.shade200),
               ),
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(14), // reduced from 20
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Current Cost',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
+                      color: Colors.black, // Changed from white to black
+                      fontSize: 14, // reduced from 16
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8), // reduced from 12
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -494,15 +680,15 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
                         '৳${currentCost.toStringAsFixed(2)}',
                         style: const TextStyle(
                           color: Colors.green,
-                          fontSize: 32,
+                          fontSize: 24, // reduced from 32
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         '৳${hourlyRate.toStringAsFixed(2)}/hour',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
-                          fontSize: 14,
+                          color: Colors.grey.shade600, // Changed from white to grey
+                          fontSize: 12, // reduced from 14
                         ),
                       ),
                     ],
@@ -510,41 +696,42 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16), // reduced from 24
 
             // Location Card
             Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.grey.shade50, // Changed to light grey
+                borderRadius: BorderRadius.circular(12), // reduced from 16
+                border: Border.all(color: Colors.grey.shade200),
               ),
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(14), // reduced from 20
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Pickup Location',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
+                      color: Colors.black, // Changed from white to black
+                      fontSize: 14, // reduced from 16
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8), // reduced from 12
                   Row(
                     children: [
                       const Icon(
                         Icons.location_on,
                         color: Colors.green,
-                        size: 20,
+                        size: 16, // reduced from 20
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6), // reduced from 8
                       Expanded(
                         child: Text(
                           cycle?['location'] ?? 'Location not specified',
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
+                            color: Colors.black, // Changed from white to black
+                            fontSize: 14, // reduced from 16
                           ),
                         ),
                       ),
@@ -553,40 +740,41 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16), // reduced from 24
 
             // Start Time Card
             Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.grey.shade50, // Changed to light grey
+                borderRadius: BorderRadius.circular(12), // reduced from 16
+                border: Border.all(color: Colors.grey.shade200),
               ),
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(14), // reduced from 20
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Rental Started',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
+                      color: Colors.black, // Changed from white to black
+                      fontSize: 14, // reduced from 16
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8), // reduced from 12
                   Row(
                     children: [
                       const Icon(
                         Icons.access_time,
                         color: Colors.green,
-                        size: 20,
+                        size: 16, // reduced from 20
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6), // reduced from 8
                       Text(
                         DateFormat('MMM dd, yyyy HH:mm').format(startTime),
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
+                          color: Colors.black, // Changed from white to black
+                          fontSize: 14, // reduced from 16
                         ),
                       ),
                     ],
@@ -594,18 +782,18 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 20), // reduced from 32
 
             // End Rental Button
             SizedBox(
               width: double.infinity,
-              height: 56,
+              height: 48, // reduced from 56
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8), // reduced from 12
                   ),
                   elevation: 4,
                 ),
@@ -615,18 +803,18 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 16, // reduced from 20
+                            height: 16, // reduced from 20
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           ),
-                          SizedBox(width: 12),
+                          SizedBox(width: 8), // reduced from 12
                           Text(
                             'Ending Rental...',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 16, // reduced from 18
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -635,20 +823,20 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
                     : Text(
                         'End Rental',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 16, // reduced from 18
                           fontWeight: FontWeight.bold,
                         ),
                       ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12), // reduced from 16
 
             // Info Card
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12), // reduced from 16
               decoration: BoxDecoration(
                 color: Colors.blue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8), // reduced from 12
                 border: Border.all(color: Colors.blue.withOpacity(0.3)),
               ),
               child: Row(
@@ -656,15 +844,15 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
                   Icon(
                     Icons.info_outline,
                     color: Colors.blue,
-                    size: 20,
+                    size: 16, // reduced from 20
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8), // reduced from 12
                   Expanded(
                     child: Text(
                       'Your rental is active. You can end it anytime by pressing the "End Rental" button.',
                       style: TextStyle(
-                        color: Colors.blue.withOpacity(0.9),
-                        fontSize: 14,
+                        color: Colors.blue.shade700, // Changed to darker blue
+                        fontSize: 12, // reduced from 14
                       ),
                     ),
                   ),
@@ -681,26 +869,26 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), // reduced from 16, 8
           decoration: BoxDecoration(
             color: Colors.green.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6), // reduced from 8
           ),
           child: Text(
             value.padLeft(2, '0'),
             style: const TextStyle(
               color: Colors.green,
-              fontSize: 24,
+              fontSize: 18, // reduced from 24
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6), // reduced from 8
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
-            fontSize: 12,
+            color: Colors.grey.shade600, // Changed from white to grey
+            fontSize: 10, // reduced from 12
           ),
         ),
       ],

@@ -166,14 +166,15 @@ class _RentCycleState extends State<RentCycle> {
             Icon(
               Icons.check_circle,
               color: Colors.green,
-              size: 28,
+              size: 24, // reduced from 28
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 6), // reduced from 8
             const Text(
               'Rental Started!',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
+                fontSize: 18, // reduced from default
               ),
             ),
           ],
@@ -184,39 +185,39 @@ class _RentCycleState extends State<RentCycle> {
           children: [
             Text(
               'Cycle: ${cycle['brand'] ?? 'Unknown'} ${cycle['model'] ?? 'Cycle'}',
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.white, fontSize: 14), // reduced from default
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6), // reduced from 8
             Text(
               'Start Time: ${DateFormat('MMM dd, yyyy HH:mm').format(startTime)}',
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.white, fontSize: 14), // reduced from default
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6), // reduced from 8
             Text(
               'Rate: ৳${cycle['hourlyRate'] ?? 0}/hour',
-              style: const TextStyle(color: Colors.green),
+              style: const TextStyle(color: Colors.green, fontSize: 14), // reduced from default
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6), // reduced from 8
             Text(
               'Rental ID: ${rental['_id']?.toString().substring(0, 8) ?? 'N/A'}',
-              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11), // reduced from 12
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12), // reduced from 16
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10), // reduced from 12
               decoration: BoxDecoration(
                 color: Colors.green.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6), // reduced from 8
                 border: Border.all(color: Colors.green.withOpacity(0.3)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.green, size: 20),
-                  const SizedBox(width: 8),
+                  Icon(Icons.info_outline, color: Colors.green, size: 16), // reduced from 20
+                  const SizedBox(width: 6), // reduced from 8
                   Expanded(
                     child: Text(
                       'Your rental has started successfully! You can now use the cycle.',
-                      style: const TextStyle(color: Colors.green, fontSize: 14),
+                      style: const TextStyle(color: Colors.green, fontSize: 12), // reduced from 14
                     ),
                   ),
                 ],
@@ -240,8 +241,9 @@ class _RentCycleState extends State<RentCycle> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), // reduced padding
             ),
-            child: const Text('Continue'),
+            child: const Text('Continue', style: TextStyle(fontSize: 14)), // reduced font size
           ),
         ],
       ),
@@ -258,14 +260,15 @@ class _RentCycleState extends State<RentCycle> {
             Icon(
               Icons.error,
               color: Colors.red,
-              size: 28,
+              size: 24, // reduced from 28
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 6), // reduced from 8
             const Text(
               'Rental Error',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
+                fontSize: 18, // reduced from default
               ),
             ),
           ],
@@ -276,9 +279,9 @@ class _RentCycleState extends State<RentCycle> {
           children: [
             Text(
               message,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+              style: const TextStyle(color: Colors.white, fontSize: 14), // reduced from 16
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12), // reduced from 16
             _buildErrorSuggestions(message),
           ],
         ),
@@ -287,7 +290,7 @@ class _RentCycleState extends State<RentCycle> {
             onPressed: () => Navigator.pop(context),
             child: const Text(
               'OK',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.white, fontSize: 14), // reduced font size
             ),
           ),
           if (message.contains('Network') || message.contains('try again'))
@@ -296,8 +299,11 @@ class _RentCycleState extends State<RentCycle> {
                 Navigator.pop(context);
                 _startRent();
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6), // reduced padding
+              ),
+              child: const Text('Retry', style: TextStyle(fontSize: 14)), // reduced font size
             ),
         ],
       ),
@@ -346,14 +352,14 @@ class _RentCycleState extends State<RentCycle> {
       children: [
         Text(
           'Suggestions:',
-          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13), // reduced from default
         ),
-        SizedBox(height: 8),
+        SizedBox(height: 6), // reduced from 8
         ...suggestions.map((s) => Padding(
-          padding: EdgeInsets.only(bottom: 4),
+          padding: EdgeInsets.only(bottom: 3), // reduced from 4
           child: Text(
             s,
-            style: TextStyle(color: Colors.white70, fontSize: 14),
+            style: TextStyle(color: Colors.white70, fontSize: 12), // reduced from 14
           ),
         )),
       ],
@@ -363,9 +369,9 @@ class _RentCycleState extends State<RentCycle> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF17153A),
+      backgroundColor: Colors.white, // Changed to white
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.teal.shade700, // Keep app bar teal for consistency
         elevation: 0,
         title: const Text(
           'Rent Cycle',
@@ -435,7 +441,7 @@ class _RentCycleState extends State<RentCycle> {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 30),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -494,7 +500,7 @@ class _RentCycleState extends State<RentCycle> {
 
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(14.0), // Changed to 14px as specified
         child: Form(
           key: _formKey,
           child: Column(
@@ -503,16 +509,17 @@ class _RentCycleState extends State<RentCycle> {
               // Cycle Image and Details Card
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12), // Changed to 12px as specified
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Cycle Image
                     Container(
-                      height: 200,
+                      height: 140, // Changed to 160px as specified
                       width: double.infinity,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
@@ -532,24 +539,24 @@ class _RentCycleState extends State<RentCycle> {
                             )
                           : _buildPlaceholderImage(),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     
                     // Cycle Details
                     Text(
                       '${_cycleData?['brand'] ?? 'Unknown'} ${_cycleData?['model'] ?? 'Cycle'}',
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
+                        color: Colors.black,
+                        fontSize: 22, // Changed to 22px as specified
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     
                     // Condition
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 16,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         color: _getConditionColor(_cycleData?['condition']),
@@ -559,12 +566,12 @@ class _RentCycleState extends State<RentCycle> {
                         _cycleData?['condition'] ?? 'Unknown',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 12,
+                          fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 15),
                     
                     // Price
                     Row(
@@ -573,15 +580,15 @@ class _RentCycleState extends State<RentCycle> {
                           '৳${_cycleData?['hourlyRate']?.toStringAsFixed(2) ?? '0.00'}/hour',
                           style: const TextStyle(
                             color: Colors.green,
-                            fontSize: 20,
+                            fontSize: 20, // Changed to 20px as specified
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
+                            horizontal: 16,
+                            vertical: 8,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.green.withOpacity(0.2),
@@ -592,7 +599,7 @@ class _RentCycleState extends State<RentCycle> {
                             'Available',
                             style: TextStyle(
                               color: Colors.green,
-                              fontSize: 12,
+                              fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -602,23 +609,25 @@ class _RentCycleState extends State<RentCycle> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 14), // Changed to 15px as specified
 
               // Location Card
               Container(
+                width: double.infinity, // Ensure full width
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12), // Changed to 12px as specified
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Location',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
+                        color: Colors.black,
+                        fontSize: 14, // Changed to 16px as specified
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -628,15 +637,15 @@ class _RentCycleState extends State<RentCycle> {
                         const Icon(
                           Icons.location_on,
                           color: Colors.green,
-                          size: 20,
+                          size: 20, // Changed to 20px as specified
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             _cycleData?['location'] ?? 'Location not specified',
                             style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
+                              color: Colors.black,
+                              fontSize: 14, // Changed to 16px as specified
                             ),
                           ),
                         ),
@@ -645,24 +654,26 @@ class _RentCycleState extends State<RentCycle> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12), // Changed to 15px as specified
 
               // Description Card
               if (_cycleData?['description'] != null)
                 Container(
+                  width: double.infinity, // Ensure same width as location
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12), // Changed to 12px as specified
+                    border: Border.all(color: Colors.grey.shade200),
                   ),
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'Description',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
+                          color: Colors.black,
+                          fontSize: 14, // Changed to 16px as specified
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -670,19 +681,19 @@ class _RentCycleState extends State<RentCycle> {
                       Text(
                         _cycleData?['description'] ?? '',
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
+                          color: Colors.black,
+                          fontSize: 14, // Changed to 16px as specified
                         ),
                       ),
                     ],
                   ),
                 ),
-              if (_cycleData?['description'] != null) const SizedBox(height: 24),
+              if (_cycleData?['description'] != null) const SizedBox(height: 12), // Changed to 15px as specified
 
               // Start Rent Button
               SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: 48, // Changed to 48px as specified
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
@@ -698,8 +709,8 @@ class _RentCycleState extends State<RentCycle> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             SizedBox(
-                              width: 20,
-                              height: 20,
+                              width: 24,
+                              height: 24,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -709,7 +720,7 @@ class _RentCycleState extends State<RentCycle> {
                             Text(
                               'Starting Rental...',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 16, // Changed to 16px as specified
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -718,7 +729,7 @@ class _RentCycleState extends State<RentCycle> {
                       : const Text(
                           'Start Rent',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 16, // Changed to 16px as specified
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -739,15 +750,15 @@ class _RentCycleState extends State<RentCycle> {
                     Icon(
                       Icons.info_outline,
                       color: Colors.orange,
-                      size: 20,
+                      size: 20, // Changed to 20px as specified
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'By starting the rental, you agree to return the cycle in the same condition.',
                         style: TextStyle(
-                          color: Colors.orange.withOpacity(0.9),
-                          fontSize: 14,
+                          color: Colors.orange.shade700,
+                          fontSize: 12, // Changed to 12px as specified
                         ),
                       ),
                     ),
@@ -773,15 +784,15 @@ class _RentCycleState extends State<RentCycle> {
           children: [
             Icon(
               Icons.directions_bike,
-              size: 60,
-              color: Colors.white,
+              size: 64,
+              color: Colors.grey,
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 12),
             Text(
-              'Cycle Image',
+              'CycleX',
               style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
+                color: Colors.grey,
+                fontSize: 18,
               ),
             ),
           ],
