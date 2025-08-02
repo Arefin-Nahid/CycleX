@@ -286,8 +286,11 @@ class ApiService {
         Uri.parse('$baseUrl/renter/dashboard'),
         headers: _headers,
       );
-      return _handleResponse(response);
+      final data = _handleResponse(response);
+      print('📊 Dashboard API Response: $data');
+      return data;
     } catch (e) {
+      print('❌ Dashboard API Error: $e');
       throw Exception('Failed to get renter dashboard stats: $e');
     }
   }
@@ -301,9 +304,19 @@ class ApiService {
         headers: _headers,
       );
       final data = _handleResponse(response);
-      return List<Map<String, dynamic>>.from(data['rentals']);
+      print('🚴 Active Rentals API Response: $data');
+      
+      // Handle both array and object responses
+      if (data is List) {
+        return List<Map<String, dynamic>>.from(data);
+      } else if (data is Map && data.containsKey('rentals')) {
+        return List<Map<String, dynamic>>.from(data['rentals']);
+      } else {
+        return [];
+      }
     } catch (e) {
-      throw Exception('Failed to get active rentals: $e');
+      print('❌ Active Rentals API Error: $e');
+      return []; // Return empty list instead of throwing
     }
   }
 
@@ -316,9 +329,19 @@ class ApiService {
         headers: _headers,
       );
       final data = _handleResponse(response);
-      return List<Map<String, dynamic>>.from(data['rides']);
+      print('📋 Recent Rides API Response: $data');
+      
+      // Handle both array and object responses
+      if (data is List) {
+        return List<Map<String, dynamic>>.from(data);
+      } else if (data is Map && data.containsKey('rides')) {
+        return List<Map<String, dynamic>>.from(data['rides']);
+      } else {
+        return [];
+      }
     } catch (e) {
-      throw Exception('Failed to get recent rides: $e');
+      print('❌ Recent Rides API Error: $e');
+      return []; // Return empty list instead of throwing
     }
   }
 
@@ -365,7 +388,12 @@ class ApiService {
       await _updateAuthHeader(); // Ensure headers are updated with Firebase token
       print('🔍 API: Calling rentals endpoint with cycleId: $cycleId');
       
-      final response = await post('rentals', {'cycleId': cycleId});
+      final now = DateTime.now();
+      final response = await post('rentals', {
+        'cycleId': cycleId,
+        'startTime': now.toIso8601String(),
+        'endTime': now.add(const Duration(hours: 24)).toIso8601String(), // 24 hour default
+      });
       print('✅ API: Rental response received: $response');
       
       // Ensure we return a proper map

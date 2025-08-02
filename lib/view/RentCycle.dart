@@ -80,10 +80,14 @@ class _RentCycleState extends State<RentCycle> {
       return 'You cannot rent your own cycle.';
     } else if (error.contains('ACTIVE_RENTAL_EXISTS')) {
       return 'You already have an active rental. Please return your current cycle first.';
+    } else if (error.contains('MISSING_CYCLE_ID')) {
+      return 'Invalid cycle ID. Please try scanning again.';
     } else if (error.contains('Network') || error.contains('timeout')) {
       return 'Network error. Please check your connection and try again.';
     } else if (error.contains('500') || error.contains('Internal Server Error')) {
       return 'Server error. Please try again in a few moments.';
+    } else if (error.contains('Failed to rent cycle')) {
+      return 'Unable to start rental. Please try again.';
     } else {
       return 'An error occurred while starting the rental. Please try again.';
     }
@@ -102,30 +106,31 @@ class _RentCycleState extends State<RentCycle> {
       Map<String, dynamic> response;
       
       try {
-        // Try regular rental endpoint first
-        response = await ApiService.instance.rentCycle(widget.cycleId);
-        print('✅ Regular rental response: $response');
+        // Use QR rental endpoint for better consistency
+        response = await ApiService.rentCycleByQR(widget.cycleId);
+        print('✅ QR rental response: $response');
         
         // Check if response is valid
         if (response == null) {
           throw Exception('Empty response from rental endpoint');
         }
         
-      } catch (regularError) {
-        print('❌ Regular rental failed: $regularError');
-        // Fallback to QR rental endpoint
+      } catch (qrError) {
+        print('❌ QR rental failed: $qrError');
+        
+        // Fallback to regular rental endpoint
         try {
-          response = await ApiService.rentCycleByQR(widget.cycleId);
-          print('✅ QR rental response: $response');
+          response = await ApiService.instance.rentCycle(widget.cycleId);
+          print('✅ Regular rental response: $response');
           
           // Check if response is valid
           if (response == null) {
-            throw Exception('Empty response from QR rental endpoint');
+            throw Exception('Empty response from regular rental endpoint');
           }
           
-        } catch (qrError) {
-          print('❌ QR rental also failed: $qrError');
-          throw Exception('Both rental methods failed. Regular: $regularError, QR: $qrError');
+        } catch (regularError) {
+          print('❌ Regular rental also failed: $regularError');
+          throw Exception('Both rental methods failed. QR: $qrError, Regular: $regularError');
         }
       }
       
