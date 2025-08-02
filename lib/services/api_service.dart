@@ -120,6 +120,18 @@ class ApiService {
     }
   }
 
+  // Process payment
+  static Future<Map<String, dynamic>> processPayment(Map<String, dynamic> paymentData) async {
+    try {
+      await instance._updateAuthHeader();
+      final response = await instance.post('renter/payments/process', paymentData);
+      return Map<String, dynamic>.from(response);
+    } catch (e) {
+      print('Error processing payment: $e');
+      throw Exception('Failed to process payment: $e');
+    }
+  }
+
   // Verify if user has profile
   static Future<bool> verifyLogin(String uid) async {
     try {
@@ -187,9 +199,19 @@ class ApiService {
       await instance._updateAuthHeader();
       final response = await instance.get('renter/rental-history');
       final data = response;
-      return List<Map<String, dynamic>>.from(data['rentals']);
+      
+      print('📋 Rental History API Response: $data');
+      
+      if (data is Map<String, dynamic> && data.containsKey('rentals')) {
+        return List<Map<String, dynamic>>.from(data['rentals']);
+      } else if (data is List) {
+        return List<Map<String, dynamic>>.from(data);
+      } else {
+        print('⚠️ Unexpected rental history response format: $data');
+        return [];
+      }
     } catch (e) {
-      print('Error getting rental history: $e');
+      print('❌ Error getting rental history: $e');
       return [];
     }
   }
@@ -288,6 +310,20 @@ class ApiService {
       );
       final data = _handleResponse(response);
       print('📊 Dashboard API Response: $data');
+      
+      // Ensure proper type conversion for numeric values
+      if (data is Map<String, dynamic>) {
+        return {
+          'totalRides': (data['totalRides'] ?? 0).toInt(),
+          'totalSpent': (data['totalSpent'] ?? 0.0).toDouble(),
+          'totalRideTime': (data['totalRideTime'] ?? 0).toInt(),
+          'totalDistance': (data['totalDistance'] ?? 0.0).toDouble(),
+          'averageRideTime': (data['averageRideTime'] ?? 0).toInt(),
+          'averageCostPerRide': (data['averageCostPerRide'] ?? 0.0).toDouble(),
+          'averageDistance': (data['averageDistance'] ?? 0.0).toDouble(),
+        };
+      }
+      
       return data;
     } catch (e) {
       print('❌ Dashboard API Error: $e');

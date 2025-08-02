@@ -5,6 +5,7 @@ import 'package:CycleX/services/api_service.dart';
 import 'package:CycleX/view/QRScannerScreen.dart';
 import 'package:CycleX/view/RentCycle.dart';
 import 'package:CycleX/view/RentInProgressScreen.dart';
+import 'package:CycleX/view/PaymentScreen.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 
@@ -153,11 +154,11 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
 
       setState(() {
         dashboardStats = {
-          'totalRides': stats['totalRides'] ?? 0,
+          'totalRides': (stats['totalRides'] ?? 0).toInt(),
           'totalSpent': (stats['totalSpent'] ?? 0.0).toDouble(),
-          'totalRideTime': stats['totalRideTime'] ?? 0, // in minutes from backend
+          'totalRideTime': (stats['totalRideTime'] ?? 0).toInt(), // in minutes from backend
           'totalDistance': (stats['totalDistance'] ?? 0.0).toDouble(), // in km from backend
-          'averageRideTime': stats['averageRideTime'] ?? 0,
+          'averageRideTime': (stats['averageRideTime'] ?? 0).toInt(),
           'averageCostPerRide': (stats['averageCostPerRide'] ?? 0.0).toDouble(),
           'averageDistance': (stats['averageDistance'] ?? 0.0).toDouble(),
         };
@@ -823,7 +824,7 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
             children: [
               _buildEnhancedStatCard(
                 title: 'Total Rides',
-                value: '${dashboardStats['totalRides'] ?? 0}',
+                value: '${(dashboardStats['totalRides'] ?? 0).toInt()}',
                 subtitle: 'Completed successfully',
                 icon: Icons.pedal_bike_rounded,
                 gradient: tealGradient,
@@ -837,7 +838,7 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
               ),
               _buildEnhancedStatCard(
                 title: 'Ride Time',
-                value: _formatRideTime(dashboardStats['totalRideTime'] ?? 0),
+                value: _formatRideTime((dashboardStats['totalRideTime'] ?? 0).toInt()),
                 subtitle: 'Time on road',
                 icon: Icons.timer_rounded,
                 gradient: mintGradient,
@@ -978,40 +979,16 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
                   child: Icon(Icons.history_rounded, color: Colors.purple, size: 24),
                 ),
                 const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Recent Rides',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: textColor,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    Text(
-                      'Your cycling history',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: textColor.withOpacity(0.6),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Recent Rides',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: textColor,
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ],
-            ),
-            TextButton.icon(
-              onPressed: () => Navigator.pushNamed(context, PageConstants.historyScreen),
-              icon: Icon(Icons.arrow_forward_rounded, color: accentColor, size: 18),
-              label: Text(
-                'View All',
-                style: TextStyle(
-                  color: accentColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
             ),
           ],
         ),
@@ -1020,10 +997,6 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
           _buildEnhancedEmptyState()
         else ...[
           ...recentRides.take(3).map((ride) => _buildModernRideCard(ride, cardColor, textColor)),
-          if (recentRides.length > 3) ...[
-            const SizedBox(height: 16),
-            _buildViewAllRidesButton(cardColor, textColor),
-          ],
         ],
       ],
     );
@@ -1300,9 +1273,9 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
   Widget _buildModernRideCard(Map<String, dynamic> ride, Color cardColor, Color textColor) {
     final cycle = ride['cycle'] ?? {};
     final endTime = DateTime.tryParse(ride['endTime'] ?? '') ?? DateTime.now();
-    final duration = ride['duration'] ?? 0; // in minutes
-    final cost = ride['totalCost'] ?? 0.0;
-    final distance = ride['distance'] ?? 0.0;
+    final duration = (ride['duration'] ?? 0).toInt(); // in minutes
+    final cost = (ride['totalCost'] ?? 0.0).toDouble();
+    final distance = (ride['distance'] ?? 0.0).toDouble();
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1503,42 +1476,7 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
     );
   }
 
-  Widget _buildViewAllRidesButton(Color cardColor, Color textColor) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: accentColor.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            spreadRadius: 1,
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: TextButton.icon(
-        onPressed: () => Navigator.pushNamed(context, PageConstants.historyScreen),
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
-        icon: Icon(Icons.history_rounded, color: accentColor, size: 20),
-        label: Text(
-          'View All Rides',
-          style: TextStyle(
-            color: accentColor,
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-        ),
-      ),
-    );
-  }
+
 
   Future<void> _showEnhancedEndRideDialog(Map<String, dynamic> rental) async {
     final result = await showDialog<bool>(
@@ -1662,40 +1600,25 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
 
       // Call the API to end the rental
       final rentalId = rental['_id'] ?? rental['id'];
-      await ApiService.endRental(rentalId);
+      final response = await ApiService.endRental(rentalId);
 
       // Close loading dialog
       if (mounted) Navigator.of(context).pop();
 
-      // Show success message
+      // Navigate to payment screen
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                const Text(
-                  'Ride ended successfully!',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ],
+        final completedRental = response['rental'] ?? rental;
+        final amount = (completedRental['totalCost'] ?? 0.0).toDouble();
+        
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentScreen(
+              rental: completedRental,
+              amount: amount,
             ),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            margin: const EdgeInsets.all(16),
           ),
         );
-        
-        // Refresh the dashboard data with animation
-        setState(() {
-          isLoading = true;
-        });
-        await _loadDashboardData();
-        
-        // Optional: Show ride summary dialog or navigate to summary screen
-        // _showRideSummaryDialog(rental);
       }
     } catch (e) {
       // Close loading dialog if still open
