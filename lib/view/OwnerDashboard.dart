@@ -83,7 +83,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                           end: Alignment.bottomRight,
                           colors: [
                             Colors.teal.shade700,
-                            Colors.blue.shade800,
+                            Colors.teal.shade700,
                           ],
                         ),
                       ),

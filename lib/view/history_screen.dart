@@ -45,9 +45,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
     }
 
     try {
-      print('🔄 Loading rental history...');
       final data = await ApiService.getRentalHistory();
-
       if (mounted) {
         setState(() {
           _rentals = List<Map<String, dynamic>>.from(data);
@@ -57,10 +55,8 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
 
         _calculateStats();
         _animationController.forward();
-        print('✅ Rental history loaded: ${_rentals.length} rentals');
       }
     } catch (e) {
-      print('❌ Error loading rental history: $e');
       if (mounted) {
         setState(() {
           _error = 'Failed to load rental history';
@@ -84,7 +80,6 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
       };
       return;
     }
-
     double totalSpent = 0.0;
     double totalDistance = 0.0;
     int totalTime = 0;
@@ -92,7 +87,6 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
     int ratingCount = 0;
     int completedRides = 0;
     int cancelledRides = 0;
-
     for (final rental in _rentals) {
       final cost = (rental['totalCost'] ?? 0.0).toDouble();
       final distance = (rental['distance'] ?? 0.0).toDouble();
@@ -183,25 +177,27 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
     }
   }
 
+  // ---- SMALLER Stats Card ----
   Widget _buildStatsCard(String title, String value, IconData icon, Color color, {String? subtitle}) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.all(2), // smaller margin
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), // smaller padding
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            color.withOpacity(0.15),
-            color.withOpacity(0.05),
+            color.withOpacity(0.9),
+            color.withOpacity(0.7),
           ],
         ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        borderRadius: BorderRadius.circular(14), // less rounded
+        border: Border.all(color: Colors.white.withOpacity(0.7), width: 1),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 8,
+            color: color.withOpacity(0.25),
+            spreadRadius: 1,
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
@@ -212,48 +208,48 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(4), // smaller
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.25),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(icon, color: color, size: 16),
+                child: Icon(icon, color: Colors.white, size: 14), // smaller icon
               ),
               const Spacer(),
               if (subtitle != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
+                    color: Colors.white.withOpacity(0.14),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     subtitle,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6), // less space
           Text(
             value,
-            style: TextStyle(
-              fontSize: 18,
+            style: const TextStyle(
+              fontSize: 14, // smaller font
               fontWeight: FontWeight.bold,
-              color: color,
+              color: Colors.white,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           Text(
             title,
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 9, // smaller font
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -324,6 +320,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: Colors.black,
                         ),
                       ),
                       Text(
@@ -347,6 +344,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
+                          color: Colors.black,
                         ),
                       ),
                     ],
@@ -399,6 +397,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                             style: const TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
+                              color: Colors.black,
                             ),
                           ),
                         ],
@@ -423,6 +422,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
+                                color: Colors.black,
                               ),
                             ),
                           ],
@@ -471,43 +471,43 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
 
   Widget _buildStatItem(String label, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(7), // smaller
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            color.withOpacity(0.15),
+            color.withOpacity(0.13),
             color.withOpacity(0.05),
           ],
         ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.2), width: 0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.17), width: 0.5),
       ),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(6),
+              color: color.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(5),
             ),
-            child: Icon(icon, color: color, size: 14),
+            child: Icon(icon, color: color, size: 10),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text(
             value,
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.bold,
-              fontSize: 13,
+              fontSize: 10,
             ),
           ),
           Text(
             label,
             style: TextStyle(
-              color: color.withOpacity(0.8),
-              fontSize: 9,
+              color: color.withOpacity(0.7),
+              fontSize: 7,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -555,10 +555,10 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.directions_bike),
-            label: const Text('Start Riding'),
+            label: const Text('Start Riding', style: TextStyle(color: Colors.black)),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF667eea),
-              foregroundColor: Colors.white,
+              foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -588,7 +588,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
               label: Text(
                 filter.toUpperCase(),
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey.shade600,
+                  color: isSelected ? Colors.black : Colors.grey.shade600,
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),
@@ -602,7 +602,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
               },
               backgroundColor: Colors.grey.shade50,
               selectedColor: const Color(0xFF667eea),
-              checkmarkColor: Colors.white,
+              checkmarkColor: Colors.black,
               side: BorderSide(
                 color: isSelected ? const Color(0xFF667eea) : Colors.grey.shade300,
               ),
@@ -618,25 +618,25 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
     final filteredRentals = _getFilteredRentals();
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // Custom App Bar
+            // Custom App Bar and Stats area with changed gradient!
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12), // smaller
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                   colors: [
-                    const Color(0xFF667eea),
-                    const Color(0xFF764ba2),
+                    Colors.teal.shade700,
+                    Colors.teal.shade700,
                   ],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF667eea).withOpacity(0.4),
+                    color: Colors.teal.shade900.withOpacity(0.2),
                     spreadRadius: 1,
                     blurRadius: 15,
                     offset: const Offset(0, 6),
@@ -674,7 +674,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
 
                   // Stats Cards
                   if (!_isLoading && _stats.isNotEmpty) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 10),
                     Row(
                       children: [
                         Expanded(
@@ -685,7 +685,6 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                             Colors.blue,
                           ),
                         ),
-                        const SizedBox(width: 12),
                         Expanded(
                           child: _buildStatsCard(
                             'Total Spent',
@@ -696,7 +695,6 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
@@ -707,7 +705,6 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                             Colors.orange,
                           ),
                         ),
-                        const SizedBox(width: 12),
                         Expanded(
                           child: _buildStatsCard(
                             'Total Time',
@@ -789,7 +786,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadHistory,
-              child: const Text('Retry'),
+              child: const Text('Retry', style: TextStyle(color: Colors.black)),
             ),
           ],
         ),
