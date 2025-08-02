@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
-import 'PaymentScreen.dart';
+import '../services/ssl_commerz_service.dart';
+import 'SSLPaymentScreen.dart';
+import '../Config/routes/PageConstants.dart';
 
 class RentInProgressScreen extends StatefulWidget {
   const RentInProgressScreen({Key? key}) : super(key: key);
@@ -154,24 +156,24 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
         if (mounted) Navigator.of(context).pop();
         
         if (mounted) {
-          // Navigate directly to payment screen like RenterDashboard
+          // Navigate to SSL payment screen
           final completedRental = response['rental'] ?? _activeRental!;
           final amount = (completedRental['totalCost'] ?? 0.0).toDouble();
           
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => PaymentScreen(
-                rental: completedRental,
+              builder: (context) => SSLPaymentScreen(
+                rentalId: completedRental['_id'] ?? completedRental['id'],
                 amount: amount,
+                rentalData: completedRental,
               ),
             ),
           );
           
-          // Check if payment was successful and refresh is needed
-          if (mounted && result != null && result is Map && result['refresh'] == true) {
-            Navigator.pop(context, {'refresh': true});
-          }
+          // Payment completion is now handled in SSLPaymentScreen
+          // The SSLPaymentScreen will navigate to RenterDashboard directly
+          // No need to handle navigation here as it's already handled in SSLPaymentScreen
         }
       }
     } catch (e) {
@@ -310,9 +312,10 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => PaymentScreen(
-                        rental: _activeRental!,
+                      builder: (context) => SSLPaymentScreen(
+                        rentalId: _activeRental!['_id'] ?? _activeRental!['id'],
                         amount: actualAmount,
+                        rentalData: _activeRental!,
                       ),
                     ),
                   );
@@ -352,9 +355,10 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => PaymentScreen(
-              rental: _activeRental!,
+            builder: (context) => SSLPaymentScreen(
+              rentalId: _activeRental!['_id'] ?? _activeRental!['id'],
               amount: calculatedAmount,
+              rentalData: _activeRental!,
             ),
           ),
         );
@@ -366,9 +370,10 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => PaymentScreen(
-              rental: _activeRental!,
+            builder: (context) => SSLPaymentScreen(
+              rentalId: _activeRental!['_id'] ?? _activeRental!['id'],
               amount: 0.0,
+              rentalData: _activeRental!,
             ),
           ),
         );

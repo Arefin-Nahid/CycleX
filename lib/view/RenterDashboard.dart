@@ -5,7 +5,7 @@ import 'package:CycleX/services/api_service.dart';
 import 'package:CycleX/view/QRScannerScreen.dart';
 import 'package:CycleX/view/RentCycle.dart';
 import 'package:CycleX/view/RentInProgressScreen.dart';
-import 'package:CycleX/view/PaymentScreen.dart';
+import 'package:CycleX/view/SSLPaymentScreen.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 
@@ -57,6 +57,7 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
     _initializeAnimations();
     _loadDashboardData();
     _startLiveUpdates();
+    _checkNavigationStack();
   }
 
   void _initializeAnimations() {
@@ -95,6 +96,21 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
         setState(() {
           // This will trigger a rebuild to update live durations and costs
         });
+      }
+    });
+  }
+
+  void _checkNavigationStack() {
+    // Check if navigation stack is in a valid state
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        try {
+          // This will help identify navigation stack issues
+          final canPop = Navigator.canPop(context);
+          print('Navigation stack check - canPop: $canPop');
+        } catch (e) {
+          print('Navigation stack error: $e');
+        }
       }
     });
   }
@@ -230,6 +246,7 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
         await _processScannedCode(scannedCode);
       }
     } catch (e) {
+      print('Error in _scanQRCode: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -542,7 +559,27 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
               icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white, size: 20),
               onPressed: () {
                 HapticFeedback.lightImpact();
-                Navigator.pop(context);
+                try {
+                  // Try to pop back to previous screen
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    // If can't pop, navigate to home screen
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      PageConstants.homeScreen,
+                      (route) => false,
+                    );
+                  }
+                } catch (e) {
+                  print('Navigation error in back button: $e');
+                  // Fallback to splash screen
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    PageConstants.splashScreen,
+                    (route) => false,
+                  );
+                }
               },
             ),
           ),
@@ -590,7 +627,17 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
               gradient: tealGradient,
               onPressed: () {
                 HapticFeedback.mediumImpact();
-                Navigator.pushNamed(context, PageConstants.mapViewScreen);
+                try {
+                  Navigator.pushNamed(context, PageConstants.mapViewScreen);
+                } catch (e) {
+                  print('Navigation error to MapView: $e');
+                  // Fallback: try to navigate to splash screen
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    PageConstants.splashScreen,
+                    (route) => false,
+                  );
+                }
               },
               isPrimary: true,
             ),
@@ -606,7 +653,17 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
               textColor: primaryColor,
               onPressed: isProcessingQR ? null : () {
                 HapticFeedback.mediumImpact();
-                _scanQRCode();
+                try {
+                  _scanQRCode();
+                } catch (e) {
+                  print('Navigation error in QR scanner: $e');
+                  // Fallback: try to navigate to splash screen
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    PageConstants.splashScreen,
+                    (route) => false,
+                  );
+                }
               },
               isPrimary: false,
             ),
@@ -1613,9 +1670,10 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => PaymentScreen(
-              rental: completedRental,
+            builder: (context) => SSLPaymentScreen(
+              rentalId: completedRental['_id'] ?? completedRental['id'],
               amount: amount,
+              rentalData: completedRental,
             ),
           ),
         );
@@ -1623,11 +1681,11 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
         print('🔄 Payment result received: $result');
         
         // Check if payment was successful and refresh is needed
-        if (mounted && result != null && result is Map && result['refresh'] == true) {
-          print('✅ Refresh flag detected, starting dashboard refresh...');
+        if (mounted && result == true) {
+          print('✅ Payment successful, starting dashboard refresh...');
           await _refreshDashboardData();
         } else {
-          print('❌ No refresh flag or invalid result: $result');
+          print('❌ Payment failed or cancelled: $result');
         }
       }
     } catch (e) {

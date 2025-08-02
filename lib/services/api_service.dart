@@ -21,7 +21,7 @@ class ApiService {
   }
 
   // Update headers with Firebase token
-  Future<void> _updateAuthHeader() async {
+  Future<void> updateAuthHeader() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -89,7 +89,7 @@ class ApiService {
   // Enhanced getCycleById with retry logic
   Future<Map<String, dynamic>> getCycleById(String cycleId, {int maxRetries = 3}) async {
     try {
-      await _updateAuthHeader();
+      await updateAuthHeader();
       return await get('cycles/$cycleId', maxRetries: maxRetries);
     } catch (e) {
       print('Error getting cycle by ID: $e');
@@ -100,7 +100,7 @@ class ApiService {
   // Enhanced getCycleById with retry logic - static method
   static Future<Map<String, dynamic>> getCycleByIdWithRetry(String cycleId, {int maxRetries = 3}) async {
     try {
-      await instance._updateAuthHeader();
+      await instance.updateAuthHeader();
       return await instance.get('cycles/$cycleId', maxRetries: maxRetries);
     } catch (e) {
       print('Error getting cycle by ID with retry: $e');
@@ -111,7 +111,7 @@ class ApiService {
   // End rental functionality
   static Future<Map<String, dynamic>> endRental(String rentalId) async {
     try {
-      await instance._updateAuthHeader();
+      await instance.updateAuthHeader();
       final response = await instance.post('renter/rentals/$rentalId/complete', {});
       return Map<String, dynamic>.from(response);
     } catch (e) {
@@ -123,7 +123,7 @@ class ApiService {
   // Process payment
   static Future<Map<String, dynamic>> processPayment(Map<String, dynamic> paymentData) async {
     try {
-      await instance._updateAuthHeader();
+      await instance.updateAuthHeader();
       final response = await instance.post('renter/payments/process', paymentData);
       return Map<String, dynamic>.from(response);
     } catch (e) {
@@ -132,10 +132,40 @@ class ApiService {
     }
   }
 
+  // Create SSL payment session
+  static Future<Map<String, dynamic>> createSSLPaymentSession(Map<String, dynamic> sessionData) async {
+    try {
+      await instance.updateAuthHeader();
+      final response = await instance.post('payments/ssl/create-session', sessionData);
+      return Map<String, dynamic>.from(response);
+    } catch (e) {
+      print('Error creating SSL payment session: $e');
+      throw Exception('Failed to create SSL payment session: $e');
+    }
+  }
+
+  // Check SSL payment status
+  static Future<Map<String, dynamic>> checkSSLPaymentStatus(String transactionId) async {
+    try {
+      await instance.updateAuthHeader();
+      final response = await instance.get('payments/ssl/status/$transactionId');
+      return Map<String, dynamic>.from(response);
+    } catch (e) {
+      print('Error checking SSL payment status: $e');
+      // Return a default response instead of throwing
+      return {
+        'payment': {
+          'status': 'pending',
+          'transactionId': transactionId,
+        }
+      };
+    }
+  }
+
   // Verify if user has profile
   static Future<bool> verifyLogin(String uid) async {
     try {
-      await instance._updateAuthHeader();
+      await instance.updateAuthHeader();
       final response = await instance.get('users/$uid');
       return response != null;
     } catch (e) {
@@ -150,7 +180,7 @@ class ApiService {
     double radius = 20.0
   }) async {
     try {
-      await instance._updateAuthHeader();
+      await instance.updateAuthHeader();
       
       // Try the optimized map endpoint first
       try {
@@ -196,7 +226,7 @@ class ApiService {
   // Get rental history - static method
   static Future<List<Map<String, dynamic>>> getRentalHistory() async {
     try {
-      await instance._updateAuthHeader();
+      await instance.updateAuthHeader();
       final response = await instance.get('renter/rental-history');
       final data = response;
       
@@ -219,7 +249,7 @@ class ApiService {
   // Register new user
   static Future<Map<String, dynamic>> registerUser(Map<String, dynamic> userData) async {
     try {
-      await instance._updateAuthHeader();
+      await instance.updateAuthHeader();
       final response = await instance.post('users/create', userData);
       return Map<String, dynamic>.from(response);
     } catch (e) {
@@ -244,7 +274,7 @@ class ApiService {
   // Add a new cycle
   Future<Map<String, dynamic>> addCycle(Map<String, dynamic> cycleData) async {
     try {
-      await _updateAuthHeader();
+      await updateAuthHeader();
       final response = await http.post(
         Uri.parse('$baseUrl/owner/cycles'),
         headers: _headers,
@@ -259,7 +289,7 @@ class ApiService {
   // Get owner's cycles
   Future<List<Map<String, dynamic>>> getMyCycles() async {
     try {
-      await _updateAuthHeader();
+      await updateAuthHeader();
       final response = await http.get(
         Uri.parse('$baseUrl/owner/cycles'),
         headers: _headers,
@@ -274,7 +304,7 @@ class ApiService {
   // Get owner dashboard stats
   Future<Map<String, dynamic>> getOwnerDashboardStats() async {
     try {
-      await _updateAuthHeader();
+      await updateAuthHeader();
       final response = await http.get(
         Uri.parse('$baseUrl/owner/dashboard'),
         headers: _headers,
@@ -288,7 +318,7 @@ class ApiService {
   // Get recent activities
   Future<List<Map<String, dynamic>>> getRecentActivities() async {
     try {
-      await _updateAuthHeader();
+      await updateAuthHeader();
       final response = await http.get(
         Uri.parse('$baseUrl/owner/activities'),
         headers: _headers,
@@ -303,7 +333,7 @@ class ApiService {
   // Get renter dashboard stats
   Future<Map<String, dynamic>> getRenterDashboardStats() async {
     try {
-      await _updateAuthHeader();
+      await updateAuthHeader();
       final response = await http.get(
         Uri.parse('$baseUrl/renter/dashboard'),
         headers: _headers,
@@ -334,7 +364,7 @@ class ApiService {
   // Get active rentals
   Future<List<Map<String, dynamic>>> getActiveRentals() async {
     try {
-      await _updateAuthHeader();
+      await updateAuthHeader();
       final response = await http.get(
         Uri.parse('$baseUrl/renter/active-rentals'),
         headers: _headers,
@@ -359,7 +389,7 @@ class ApiService {
   // Get recent rides
   Future<List<Map<String, dynamic>>> getRecentRides() async {
     try {
-      await _updateAuthHeader();
+      await updateAuthHeader();
       final response = await http.get(
         Uri.parse('$baseUrl/renter/recent-rides'),
         headers: _headers,
@@ -384,7 +414,7 @@ class ApiService {
   // Rent cycle by scanning QR code
   static Future<Map<String, dynamic>> rentCycleByQR(String cycleId) async {
     try {
-      await instance._updateAuthHeader();
+      await instance.updateAuthHeader();
       print('🔍 API: Calling rent-by-qr endpoint with cycleId: $cycleId');
       
       final response = await instance.post('cycles/rent-by-qr', {'cycleId': cycleId});
@@ -403,7 +433,7 @@ class ApiService {
     {Map<String, dynamic>? coordinates}
   ) async {
     try {
-      await _updateAuthHeader();
+      await updateAuthHeader();
       final response = await http.patch(
         Uri.parse('$baseUrl/owner/cycles/$cycleId/toggle-status'),
         headers: _headers,
@@ -421,7 +451,7 @@ class ApiService {
   // Get rental by ID
   static Future<Map<String, dynamic>?> getRentalById(String rentalId) async {
     try {
-      await instance._updateAuthHeader();
+      await instance.updateAuthHeader();
       final response = await instance.get('rentals/$rentalId')
           .timeout(Duration(seconds: 10)); // Add 10 second timeout
       return response;
@@ -435,7 +465,7 @@ class ApiService {
   // rentCycle method
   Future<Map<String, dynamic>> rentCycle(String cycleId) async {
     try {
-      await _updateAuthHeader(); // Ensure headers are updated with Firebase token
+      await updateAuthHeader(); // Ensure headers are updated with Firebase token
       print('🔍 API: Calling rentals endpoint with cycleId: $cycleId');
       
       final now = DateTime.now();
@@ -463,7 +493,7 @@ class ApiService {
   // Delete cycle
   Future<void> deleteCycle(String cycleId) async {
     try {
-      await _updateAuthHeader();
+      await updateAuthHeader();
       final response = await http.delete(
         Uri.parse('$baseUrl/owner/cycles/$cycleId'),
         headers: _headers,
