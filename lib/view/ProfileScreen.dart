@@ -335,14 +335,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 },
                               ),
                               _buildProfileOption(
-                                title: 'Payment Methods',
-                                icon: Icons.payment,
-                                iconColor: Colors.green,
-                                onTap: () {
-                                  Navigator.pushNamed(context, '/payment-methods');
-                                },
-                              ),
-                              _buildProfileOption(
                                 title: 'Notifications',
                                 icon: Icons.notifications_outlined,
                                 iconColor: Colors.orange,

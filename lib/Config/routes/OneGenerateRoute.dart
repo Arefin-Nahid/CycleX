@@ -12,7 +12,6 @@ import 'package:CycleX/view/RenterDashboard.dart';
 import 'package:CycleX/view/MapView.dart';
 import 'package:CycleX/view/ProfileScreen.dart';
 import 'package:CycleX/view/EditProfileScreen.dart';
-import 'package:CycleX/view/PaymentMethodsScreen.dart';
 import 'package:CycleX/view/NotificationsScreen.dart';
 import 'package:CycleX/view/SecurityScreen.dart';
 import 'package:CycleX/view/HelpSupportScreen.dart';
@@ -63,9 +62,6 @@ class OneGeneralRoute {
         
       case PageConstants.editProfileScreen:
         return materialPageRoute(widget: const EditProfileScreen());
-        
-      case PageConstants.paymentMethodsScreen:
-        return materialPageRoute(widget: const PaymentMethodsScreen());
         
       case PageConstants.notificationsScreen:
         return materialPageRoute(widget: const NotificationsScreen());

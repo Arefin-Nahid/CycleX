@@ -135,10 +135,13 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
   }
 
   Future<void> _showQRCodePreview(String cycleId, Map<String, dynamic> cycle) async {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        backgroundColor: Colors.white,
+        backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: EdgeInsets.all(24),
@@ -151,7 +154,11 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
                   SizedBox(width: 12),
                   Text(
                     'QR Code for Cycle',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18, 
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : Colors.black87,
+                    ),
                   ),
                 ],
               ),
@@ -173,13 +180,20 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
               SizedBox(height: 16),
               Text(
                 '${cycle['brand']} ${cycle['model']}',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.w500,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: 8),
               Text(
                 'ID: ${cycleId.substring(0, 8)}...',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                style: TextStyle(
+                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600], 
+                  fontSize: 12
+                ),
               ),
               SizedBox(height: 20),
               Row(
@@ -278,23 +292,40 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
   }
 
   Future<void> _deleteCycle(String cycleId) async {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    
     try {
       bool confirm = await showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
           title: Row(
             children: [
               Icon(Icons.delete, color: Colors.red, size: 24),
               SizedBox(width: 12),
-              Text('Delete Cycle', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                'Delete Cycle', 
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
             ],
           ),
-          content: Text('Are you sure you want to delete this cycle? This action cannot be undone.'),
+          content: Text(
+            'Are you sure you want to delete this cycle? This action cannot be undone.',
+            style: TextStyle(
+              color: isDarkMode ? Colors.white70 : Colors.black87,
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: isDarkMode ? Colors.teal[300] : Colors.teal),
+              ),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
@@ -321,11 +352,22 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    
     return Scaffold(
+      backgroundColor: isDarkMode ? Colors.grey[900] : Colors.grey[50],
       appBar: AppBar(
-        title: Text('My Cycles'),
+        title: Text(
+          'My Cycles',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           if (isProcessingAction)
             Padding(
@@ -348,7 +390,12 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
                 children: [
                   CircularProgressIndicator(color: Colors.teal),
                   SizedBox(height: 16),
-                  Text('Loading your cycles...'),
+                  Text(
+                    'Loading your cycles...',
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white70 : Colors.grey[600],
+                    ),
+                  ),
                 ],
               ),
             )
@@ -360,21 +407,22 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
                       Icon(
                         Icons.directions_bike_outlined,
                         size: 80,
-                        color: Colors.grey[400],
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[300],
                       ),
                       SizedBox(height: 16),
                       Text(
                         'No cycles found',
                         style: TextStyle(
                           fontSize: 18,
-                          color: Colors.grey[600],
+                          color: isDarkMode ? Colors.white70 : Colors.grey[600],
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       SizedBox(height: 8),
                       Text(
                         'Add your first cycle to get started',
                         style: TextStyle(
-                          color: Colors.grey[500],
+                          color: isDarkMode ? Colors.grey[500] : Colors.grey[500],
                         ),
                       ),
                     ],
@@ -383,77 +431,124 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
               : RefreshIndicator(
                   onRefresh: _loadCycles,
                   child: ListView.builder(
+                    padding: EdgeInsets.all(16),
                     itemCount: cycles.length,
                     itemBuilder: (context, index) {
                       final cycle = cycles[index];
                       return Card(
-                        margin: EdgeInsets.all(8),
+                        margin: EdgeInsets.only(bottom: 12),
                         elevation: 2,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        color: isDarkMode ? Colors.grey[800] : Colors.white,
                         child: Column(
                           children: [
-                            ListTile(
-                              title: Text(
-                                '${cycle['brand']} ${cycle['model']}',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              subtitle: Column(
+                            Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '${cycle['brand']} ${cycle['model']}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: isDarkMode ? Colors.white : Colors.black87,
+                                          ),
+                                        ),
+                                      ),
+                                      PopupMenuButton(
+                                        icon: Icon(
+                                          Icons.more_vert,
+                                          color: isDarkMode ? Colors.white70 : Colors.grey[600],
+                                        ),
+                                        itemBuilder: (context) => [
+                                          PopupMenuItem(
+                                            child: ListTile(
+                                              leading: Icon(Icons.qr_code, color: Colors.teal),
+                                              title: Text(
+                                                'Preview QR',
+                                                style: TextStyle(
+                                                  color: isDarkMode ? Colors.white : Colors.black87,
+                                                ),
+                                              ),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                _showQRCodePreview(cycle['_id'], cycle);
+                                              },
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            child: ListTile(
+                                              leading: Icon(Icons.download, color: Colors.blue),
+                                              title: Text(
+                                                'Download QR',
+                                                style: TextStyle(
+                                                  color: isDarkMode ? Colors.white : Colors.black87,
+                                                ),
+                                              ),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                _downloadQRCode(cycle['_id']);
+                                              },
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            child: ListTile(
+                                              leading: Icon(Icons.delete, color: Colors.red),
+                                              title: Text(
+                                                'Delete', 
+                                                style: TextStyle(color: Colors.red),
+                                              ),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                _deleteCycle(cycle['_id']);
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 8),
+                                  _buildCycleInfo(
+                                    'Condition',
+                                    cycle['condition'] ?? 'N/A',
+                                    Icons.build,
+                                    isDarkMode,
+                                  ),
                                   SizedBox(height: 4),
-                                  Text(
-                                    'Condition: ${cycle['condition']}',
-                                    style: TextStyle(color: Colors.grey[600]),
+                                  _buildCycleInfo(
+                                    'Rate',
+                                    '৳${cycle['hourlyRate'] ?? 0}/hour',
+                                    Icons.attach_money,
+                                    isDarkMode,
+                                    valueColor: Colors.green,
                                   ),
-                                  Text(
-                                    'Rate: ৳${cycle['hourlyRate']}/hour',
-                                    style: TextStyle(color: Colors.green, fontWeight: FontWeight.w500),
-                                  ),
-                                  Text(
-                                    'Location: ${cycle['location']}',
-                                    style: TextStyle(color: Colors.grey[600]),
-                                  ),
-                                ],
-                              ),
-                              trailing: PopupMenuButton(
-                                itemBuilder: (context) => [
-                                  PopupMenuItem(
-                                    child: ListTile(
-                                      leading: Icon(Icons.qr_code, color: Colors.teal),
-                                      title: Text('Preview QR'),
-                                      onTap: () {
-                                        Navigator.pop(context);
-                                        _showQRCodePreview(cycle['_id'], cycle);
-                                      },
-                                    ),
-                                  ),
-                                  PopupMenuItem(
-                                    child: ListTile(
-                                      leading: Icon(Icons.download, color: Colors.blue),
-                                      title: Text('Download QR'),
-                                      onTap: () {
-                                        Navigator.pop(context);
-                                        _downloadQRCode(cycle['_id']);
-                                      },
-                                    ),
-                                  ),
-                                  PopupMenuItem(
-                                    child: ListTile(
-                                      leading: Icon(Icons.delete, color: Colors.red),
-                                      title: Text('Delete', style: TextStyle(color: Colors.red)),
-                                      onTap: () {
-                                        Navigator.pop(context);
-                                        _deleteCycle(cycle['_id']);
-                                      },
-                                    ),
+                                  SizedBox(height: 4),
+                                  _buildCycleInfo(
+                                    'Location',
+                                    cycle['location'] ?? 'Unknown',
+                                    Icons.location_on,
+                                    isDarkMode,
                                   ),
                                 ],
                               ),
                             ),
-                            Padding(
+                            Container(
                               padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: isDarkMode ? Colors.grey[700] : Colors.grey[100],
+                                borderRadius: BorderRadius.only(
+                                  bottomLeft: Radius.circular(12),
+                                  bottomRight: Radius.circular(12),
+                                ),
+                              ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
@@ -493,6 +588,41 @@ class _MyCyclesScreenState extends State<MyCyclesScreen> {
                     },
                   ),
                 ),
+    );
+  }
+
+  Widget _buildCycleInfo(String label, String value, IconData icon, bool isDarkMode, {Color? valueColor}) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: isDarkMode ? Colors.teal[300] : Colors.teal[600],
+        ),
+        SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: valueColor ?? (isDarkMode ? Colors.white : Colors.black87),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
