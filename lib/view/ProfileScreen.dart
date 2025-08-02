@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -18,6 +19,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = false;
   String _displayName = '';
   String _email = '';
+  Map<String, dynamic>? _userProfile;
 
   @override
   void initState() {
@@ -33,6 +35,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _displayName = user.displayName ?? user.email?.split('@')[0] ?? 'User';
         _email = user.email ?? 'No email provided';
       });
+      _loadUserProfileFromBackend(user.uid);
+    }
+  }
+
+  Future<void> _loadUserProfileFromBackend(String uid) async {
+    try {
+      final profile = await ApiService.getUserProfile(uid);
+      setState(() {
+        _userProfile = profile['user'];
+        if (_userProfile?['profilePicture'] != null) {
+          _profileImageUrl = _userProfile!['profilePicture'];
+        }
+      });
+    } catch (e) {
+      print('Error loading user profile from backend: $e');
     }
   }
 
@@ -40,6 +57,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = _auth.currentUser;
     if (user != null) {
       try {
+        // First try to get from backend
+        if (_userProfile?['profilePicture'] != null) {
+          setState(() {
+            _profileImageUrl = _userProfile!['profilePicture'];
+          });
+          return;
+        }
+
+        // Fallback to Firebase Storage
         final ref = _storage.ref().child('profile_images/${user.uid}');
         final url = await ref.getDownloadURL();
         setState(() {
@@ -47,6 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       } catch (e) {
         // No profile image exists yet
+        print('No profile image found: $e');
       }
     }
   }
@@ -63,16 +90,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         final user = _auth.currentUser;
         if (user != null) {
+          // Upload to Firebase Storage
           final ref = _storage.ref().child('profile_images/${user.uid}');
           await ref.putFile(File(image.path));
           final url = await ref.getDownloadURL();
+          
+          // Update in MongoDB backend
+          await ApiService.updateProfilePicture(user.uid, url);
+          
           setState(() {
             _profileImageUrl = url;
           });
+
+          // Reload user profile from backend
+          await _loadUserProfileFromBackend(user.uid);
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update profile picture')),
+          SnackBar(content: Text('Failed to update profile picture: $e')),
         );
       } finally {
         setState(() {
@@ -259,7 +294,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ],
                                     ),
                                     child: _isLoading
-                                        ? const CircularProgressIndicator()
+                                        ? const CircularProgressIndicator(
+                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.teal),
+                                          )
                                         : _profileImageUrl != null
                                             ? ClipOval(
                                                 child: Image.network(
@@ -306,7 +343,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ],
                           ),
                         ),
-                        const Divider(),
                         // Profile Options
                         Padding(
                           padding: const EdgeInsets.all(20),

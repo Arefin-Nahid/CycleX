@@ -30,12 +30,16 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
   Timer? _timeoutTimer;
   int _pollingAttempts = 0;
   static const int _maxPollingAttempts = 12; // 1 minute (12 * 5 seconds)
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _initializeWebView();
-    _startPaymentStatusPolling();
+    // Add a delay before starting polling to give backend time to create payment record
+    Timer(const Duration(seconds: 3), () {
+      _startPaymentStatusPolling();
+    });
   }
 
   @override
@@ -46,6 +50,13 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
   }
 
   void _initializeWebView() {
+    // Validate that the gateway URL is a proper SSLCommerz gateway URL
+    if (!widget.gatewayUrl.contains('sslcommerz') && 
+        !widget.gatewayUrl.contains('sandbox') &&
+        !widget.gatewayUrl.contains('gateway')) {
+      print('⚠️ Warning: Gateway URL may not be a valid SSLCommerz URL: ${widget.gatewayUrl}');
+    }
+    
     _webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
@@ -53,6 +64,7 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
           onPageStarted: (String url) {
             setState(() {
               _isLoading = true;
+              _errorMessage = null; // Clear any previous error messages
             });
             print('🔍 WebView loading: $url');
           },
@@ -65,10 +77,46 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
           },
           onNavigationRequest: (NavigationRequest request) {
             print('🔗 Navigation request: ${request.url}');
+            
+            // Prevent loading of API endpoints that could return error messages
+            if (request.url.contains('/api/') || 
+                request.url.contains('/payments/ssl/status/') ||
+                request.url.contains('payment-not-found') ||
+                request.url.contains('error') ||
+                request.url.contains('404') ||
+                request.url.contains('500')) {
+              print('🚫 Blocked navigation to potential error endpoint: ${request.url}');
+              return NavigationDecision.prevent;
+            }
+            
+            // Only allow navigation to SSLCommerz gateway URLs
+            if (!request.url.contains('sslcommerz') && 
+                !request.url.contains('sandbox') &&
+                !request.url.contains('gateway') &&
+                !request.url.contains('success') &&
+                !request.url.contains('fail') &&
+                !request.url.contains('cancel')) {
+              print('🚫 Blocked navigation to non-gateway URL: ${request.url}');
+              return NavigationDecision.prevent;
+            }
+            
             if (_handleCallbackUrl(request.url)) {
               return NavigationDecision.prevent;
             }
             return NavigationDecision.navigate;
+          },
+          onWebResourceError: (WebResourceError error) {
+            print('❌ WebView error: ${error.description}');
+            // Don't show error messages to user, just log them
+            // This prevents backend error messages from being displayed
+            
+            // If the error contains JSON or backend error messages, prevent them from being displayed
+            if (error.description.contains('{') || 
+                error.description.contains('"message"') ||
+                error.description.contains('Payment not found')) {
+              print('🚫 Blocked backend error message from being displayed: ${error.description}');
+              return;
+            }
           },
         ),
       )
@@ -88,6 +136,9 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
   }
 
   void _startPaymentStatusPolling() {
+    // Clear any existing error messages before starting polling
+    _clearErrorMessages();
+    
     _statusPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       if (_paymentCompleted) {
         timer.cancel();
@@ -103,21 +154,37 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
       
       try {
         final status = await ApiService.checkSSLPaymentStatus(widget.transactionId);
-        print('📊 Payment status poll: ${status['payment']['status']}');
-        if (status['payment']['status'] == 'completed') {
-          _paymentCompleted = true;
-          timer.cancel();
-          _showPaymentResultDialog(true);
-        } else if (status['payment']['status'] == 'failed' ||
-            status['payment']['status'] == 'cancelled') {
-          _paymentCompleted = true;
-          timer.cancel();
-          _showPaymentResultDialog(false);
+        
+        // Handle the response based on payment status
+        if (status['payment'] != null) {
+          final paymentStatus = status['payment']['status'];
+          print('📊 Payment status poll: $paymentStatus (attempt $_pollingAttempts/$_maxPollingAttempts)');
+          
+          if (paymentStatus == 'completed') {
+            _paymentCompleted = true;
+            timer.cancel();
+            _showPaymentResultDialog(true);
+          } else if (paymentStatus == 'failed' ||
+              paymentStatus == 'cancelled') {
+            _paymentCompleted = true;
+            timer.cancel();
+            _showPaymentResultDialog(false);
+          } else if (paymentStatus == 'pending') {
+            // Continue polling for pending payments
+            print('⏳ Payment still pending, continuing to poll...');
+          } else {
+            // Unknown status, continue polling
+            print('❓ Unknown payment status: $paymentStatus, continuing to poll...');
+          }
+        } else {
+          // No payment data in response, continue polling
+          print('⏳ No payment data available yet, continuing to poll...');
         }
       } catch (e) {
         print('❌ Error polling payment status: $e');
         // Don't show error to user, just continue polling
         // The payment might not be in database yet
+        // This is expected behavior when payment is still being processed
       }
     });
   }
@@ -175,15 +242,15 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
             ],
           ),
           actions: [
-                         TextButton(
-               onPressed: () {
-                 // Close the dialog first
-                 Navigator.of(context).pop();
-                 // Then call the callback which will handle navigation
-                 if (mounted) {
-                   widget.onPaymentComplete(isSuccess);
-                 }
-               },
+            TextButton(
+              onPressed: () {
+                // Close the dialog first
+                Navigator.of(context).pop();
+                // Then call the callback which will handle navigation
+                if (mounted) {
+                  widget.onPaymentComplete(isSuccess);
+                }
+              },
               child: Text(
                 isSuccess ? 'Continue' : 'Try Again',
                 style: TextStyle(
@@ -197,6 +264,25 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
         );
       },
     );
+  }
+
+  void _clearErrorMessages() {
+    if (mounted) {
+      setState(() {
+        _errorMessage = null;
+      });
+    }
+  }
+
+  void _setErrorMessage(String message) {
+    // Only set user-friendly error messages, not backend error responses
+    if (!message.contains('{') && !message.contains('"') && !message.contains('message')) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = message;
+        });
+      }
+    }
   }
 
   @override
@@ -231,7 +317,10 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
       ),
       body: Stack(
         children: [
+          // WebView with error handling
           WebViewWidget(controller: _webViewController),
+          
+          // Loading indicator
           if (_isLoading)
             Container(
               color: Colors.white,
@@ -251,6 +340,26 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+          
+          // Error message overlay (only for user-friendly messages, not backend errors)
+          if (_errorMessage != null && _errorMessage!.isNotEmpty)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: Colors.red.shade100,
+                padding: const EdgeInsets.all(8),
+                child: Text(
+                  _errorMessage!,
+                  style: TextStyle(
+                    color: Colors.red.shade800,
+                    fontSize: 12,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
@@ -284,15 +393,15 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
                 style: TextStyle(color: Colors.teal, fontSize: 14),
               ),
             ),
-                         TextButton(
-               onPressed: () {
-                 // Close the dialog first
-                 Navigator.of(context).pop();
-                 // Then call the callback which will handle navigation
-                 if (mounted) {
-                   widget.onPaymentComplete(false);
-                 }
-               },
+            TextButton(
+              onPressed: () {
+                // Close the dialog first
+                Navigator.of(context).pop();
+                // Then call the callback which will handle navigation
+                if (mounted) {
+                  widget.onPaymentComplete(false);
+                }
+              },
               child: const Text(
                 'Cancel Payment',
                 style: TextStyle(color: Colors.red, fontSize: 14),

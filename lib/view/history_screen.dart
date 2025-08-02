@@ -544,7 +544,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
           ),
           const SizedBox(height: 24),
           Text(
-            'No Rental History',
+            'No Renting History',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -553,7 +553,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
           ),
           const SizedBox(height: 8),
           Text(
-            'Your rental history will appear here\nonce you start using our service.',
+            'Your renting history will appear here\nonce you start using our service.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
@@ -663,7 +663,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                       ),
                       const Expanded(
                         child: Text(
-                          'Rental History',
+                          'Rent History',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 24,

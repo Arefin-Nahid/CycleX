@@ -151,8 +151,23 @@ class ApiService {
       final response = await instance.get('payments/ssl/status/$transactionId');
       return Map<String, dynamic>.from(response);
     } catch (e) {
-      print('Error checking SSL payment status: $e');
-      // Return a default response instead of throwing
+      print('❌ Error checking SSL payment status: $e');
+      
+      // Handle "Payment not found" error gracefully
+      if (e.toString().contains('Payment not found') || 
+          e.toString().contains('PAYMENT_NOT_FOUND')) {
+        print('⏳ Payment not found in database yet, continuing to poll...');
+        // Return a default response indicating payment is still pending
+        return {
+          'payment': {
+            'status': 'pending',
+            'transactionId': transactionId,
+            'message': 'Payment is being processed',
+          }
+        };
+      }
+      
+      // For other errors, return a default response instead of throwing
       return {
         'payment': {
           'status': 'pending',
@@ -223,7 +238,7 @@ class ApiService {
     }
   }
 
-  // Get rental history - static method
+  // Get rental history - static method (for renters)
   static Future<List<Map<String, dynamic>>> getRentalHistory() async {
     try {
       await instance.updateAuthHeader();
@@ -246,6 +261,8 @@ class ApiService {
     }
   }
 
+
+
   // Register new user
   static Future<Map<String, dynamic>> registerUser(Map<String, dynamic> userData) async {
     try {
@@ -255,6 +272,33 @@ class ApiService {
     } catch (e) {
       print('Error registering user: $e');
       throw Exception('Failed to register user: $e');
+    }
+  }
+
+  // Update profile picture
+  static Future<Map<String, dynamic>> updateProfilePicture(String uid, String profilePictureUrl) async {
+    try {
+      await instance.updateAuthHeader();
+      final response = await instance.post('users/update-profile-picture', {
+        'uid': uid,
+        'profilePicture': profilePictureUrl,
+      });
+      return Map<String, dynamic>.from(response);
+    } catch (e) {
+      print('Error updating profile picture: $e');
+      throw Exception('Failed to update profile picture: $e');
+    }
+  }
+
+  // Get user profile
+  static Future<Map<String, dynamic>> getUserProfile(String uid) async {
+    try {
+      await instance.updateAuthHeader();
+      final response = await instance.get('users/$uid');
+      return Map<String, dynamic>.from(response);
+    } catch (e) {
+      print('Error getting user profile: $e');
+      throw Exception('Failed to get user profile: $e');
     }
   }
 
@@ -327,6 +371,32 @@ class ApiService {
       return List<Map<String, dynamic>>.from(data['activities']);
     } catch (e) {
       throw Exception('Failed to get recent activities: $e');
+    }
+  }
+
+  // Get owner rental history - instance method
+  Future<List<Map<String, dynamic>>> getOwnerRentalHistory() async {
+    try {
+      await updateAuthHeader();
+      final response = await http.get(
+        Uri.parse('$baseUrl/owner/rental-history'),
+        headers: _headers,
+      );
+      final data = _handleResponse(response);
+      
+      print('📋 Owner Rental History API Response: $data');
+      
+      if (data is Map<String, dynamic> && data.containsKey('rentals')) {
+        return List<Map<String, dynamic>>.from(data['rentals']);
+      } else if (data is List) {
+        return List<Map<String, dynamic>>.from(data);
+      } else {
+        print('⚠️ Unexpected owner rental history response format: $data');
+        return [];
+      }
+    } catch (e) {
+      print('❌ Error getting owner rental history: $e');
+      return [];
     }
   }
 
