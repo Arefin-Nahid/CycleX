@@ -3,7 +3,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:CycleX/services/api_service.dart';
-import 'package:CycleX/models/cycle.dart';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'RentCycle.dart';
@@ -21,35 +20,40 @@ class _MapViewState extends State<MapView> {
   final Set<Marker> _markers = {};
   bool _isLoading = true;
   List<Map<String, dynamic>> _activeCycles = [];
+  List<Map<String, dynamic>> _myActiveCycles = [];
   final LatLng _kuetLocation = const LatLng(22.8999, 89.5020);
   BitmapDescriptor? _cycleIcon;
+  BitmapDescriptor? _myCycleIcon;
   bool _isRefreshing = false;
 
   @override
   void initState() {
     super.initState();
-    _loadCustomMarker();
+    _loadCustomMarkers();
     _initializeLocation();
   }
 
-  Future<void> _loadCustomMarker() async {
+  Future<void> _loadCustomMarkers() async {
     try {
-      _cycleIcon = await _createCustomCycleMarker();
+      _cycleIcon = await _createCustomCycleMarker(Colors.green);
+      _myCycleIcon = await _createCustomCycleMarker(Colors.blue);
     } catch (e) {
-      print('Error creating custom cycle marker: $e');
+      print('Error creating custom cycle markers: $e');
       try {
         _cycleIcon = await BitmapDescriptor.fromAssetImage(
           const ImageConfiguration(size: Size(96, 96)),
           'assets/images/cycle_marker.png',
         );
+        _myCycleIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
       } catch (assetError) {
         print('Error loading asset marker: $assetError');
         _cycleIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
+        _myCycleIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
       }
     }
   }
 
-  Future<BitmapDescriptor> _createCustomCycleMarker() async {
+  Future<BitmapDescriptor> _createCustomCycleMarker(Color color) async {
     final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
     final Canvas canvas = Canvas(pictureRecorder);
 
@@ -67,7 +71,7 @@ class _MapViewState extends State<MapView> {
     );
 
     final Paint backgroundPaint = Paint()
-      ..color = Colors.green
+      ..color = color
       ..style = PaintingStyle.fill;
 
     canvas.drawCircle(
@@ -166,6 +170,7 @@ class _MapViewState extends State<MapView> {
       });
 
       await _fetchActiveCycles(position.latitude, position.longitude);
+      await _fetchMyActiveCycles();
 
       _mapController?.animateCamera(
         CameraUpdate.newCameraPosition(
@@ -195,19 +200,15 @@ class _MapViewState extends State<MapView> {
       );
 
       setState(() {
-        _activeCycles = cycles;
         _markers.clear();
 
         final currentUser = FirebaseAuth.instance.currentUser;
         final currentUserId = currentUser?.uid;
 
+        // Filter out user's own cycles from available cycles list
         List<Map<String, dynamic>> otherUsersCycles = [];
 
         for (var cycle in cycles) {
-          if (currentUserId != null && cycle['owner'] == currentUserId) {
-            continue;
-          }
-
           if (cycle['coordinates'] != null) {
             final coordinates = cycle['coordinates'];
             if (coordinates is Map &&
@@ -217,20 +218,23 @@ class _MapViewState extends State<MapView> {
                 final lat = coordinates['latitude'].toDouble();
                 final lng = coordinates['longitude'].toDouble();
 
-                otherUsersCycles.add(cycle);
+                // Only add to available cycles if it's not the user's own cycle
+                if (currentUserId == null || cycle['owner'] != currentUserId) {
+                  otherUsersCycles.add(cycle);
 
-                _markers.add(
-                  Marker(
-                    markerId: MarkerId(cycle['_id']),
-                    position: LatLng(lat, lng),
-                    infoWindow: InfoWindow(
-                      title: '${cycle['brand'] ?? 'Unknown'} ${cycle['model'] ?? 'Cycle'}',
-                      snippet: '৳${cycle['hourlyRate']?.toStringAsFixed(2) ?? '0.00'}/hour',
+                  _markers.add(
+                    Marker(
+                      markerId: MarkerId(cycle['_id']),
+                      position: LatLng(lat, lng),
+                      infoWindow: InfoWindow(
+                        title: '${cycle['brand'] ?? 'Unknown'} ${cycle['model'] ?? 'Cycle'}',
+                        snippet: '৳${cycle['hourlyRate']?.toStringAsFixed(2) ?? '0.00'}/hour',
+                      ),
+                      icon: _cycleIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+                      onTap: () => _onCycleMarkerTapped(cycle),
                     ),
-                    icon: _cycleIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-                    onTap: () => _onCycleMarkerTapped(cycle),
-                  ),
-                );
+                  );
+                }
               } catch (e) {
                 continue;
               }
@@ -250,12 +254,304 @@ class _MapViewState extends State<MapView> {
     }
   }
 
+  Future<void> _fetchMyActiveCycles() async {
+    try {
+      final myCycles = await ApiService.instance.getMyCycles();
+      final activeMyCycles = myCycles.where((cycle) =>
+      cycle['isActive'] == true &&
+          cycle['coordinates'] != null
+      ).toList();
+
+      setState(() {
+        _myActiveCycles = activeMyCycles;
+      });
+
+      // Add markers for my active cycles
+      for (var cycle in activeMyCycles) {
+        if (cycle['coordinates'] != null) {
+          final coordinates = cycle['coordinates'];
+          if (coordinates is Map &&
+              coordinates['latitude'] != null &&
+              coordinates['longitude'] != null) {
+            try {
+              final lat = coordinates['latitude'].toDouble();
+              final lng = coordinates['longitude'].toDouble();
+
+              _markers.add(
+                Marker(
+                  markerId: MarkerId('my_${cycle['_id']}'),
+                  position: LatLng(lat, lng),
+                  infoWindow: InfoWindow(
+                    title: 'My ${cycle['brand'] ?? 'Unknown'} ${cycle['model'] ?? 'Cycle'}',
+                    snippet: 'My Active Cycle',
+                  ),
+                  icon: _myCycleIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+                  onTap: () => _onMyCycleMarkerTapped(cycle),
+                ),
+              );
+            } catch (e) {
+              continue;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ MapView: Error fetching my active cycles: $e');
+    }
+  }
+
   void _onCycleMarkerTapped(Map<String, dynamic> cycleData) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => RentCycle(
           cycleId: cycleData['_id'],
+        ),
+      ),
+    );
+  }
+
+  void _onMyCycleMarkerTapped(Map<String, dynamic> cycleData) {
+    _showMyCycleInfo(cycleData);
+  }
+
+  void _showMyCycleInfo(Map<String, dynamic> cycle) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF17153A),
+        title: Row(
+          children: [
+            Icon(Icons.directions_bike, color: Colors.blue, size: 28),
+            const SizedBox(width: 8),
+            const Text(
+              'My Active Cycle',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${cycle['brand']} ${cycle['model']}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Rate: ৳${cycle['hourlyRate']?.toStringAsFixed(2) ?? '0.00'}/hour',
+              style: const TextStyle(color: Colors.green),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Condition: ${cycle['condition'] ?? 'N/A'}',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Location: ${cycle['location'] ?? 'Unknown'}',
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Close',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCycleList() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.teal.shade700,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.directions_bike, color: Colors.white, size: 24),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Available Cycles',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_activeCycles.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: _activeCycles.isEmpty
+                  ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.directions_bike_outlined,
+                      size: 80,
+                      color: Colors.grey[300],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No cycles available nearby',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Try moving to a different location',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+                  : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _activeCycles.length,
+                itemBuilder: (context, index) {
+                  final cycle = _activeCycles[index];
+                  bool isMine = false;
+                  final currentUser = FirebaseAuth.instance.currentUser;
+                  if (currentUser != null && cycle['owner'] == currentUser.uid) {
+                    isMine = true;
+                  }
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(16),
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.teal.shade100,
+                        child: Icon(
+                          Icons.directions_bike,
+                          color: Colors.teal.shade700,
+                        ),
+                      ),
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${cycle['brand'] ?? 'Unknown'} ${cycle['model'] ?? 'Cycle'}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          if (isMine)
+                            Container(
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'own',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 4),
+                          Text(
+                            '৳${cycle['hourlyRate']?.toStringAsFixed(2) ?? '0.00'}/hour',
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Condition: ${cycle['condition'] ?? 'N/A'}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      trailing: isMine
+                          ? null
+                          : ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _onCycleMarkerTapped(cycle);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal.shade700,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('Rent'),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -303,9 +599,9 @@ class _MapViewState extends State<MapView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.teal.shade700, // <-- Changed from Color(0xFF17153A)
+      backgroundColor: Colors.teal.shade700,
       appBar: AppBar(
-        backgroundColor: Colors.teal.shade700, // <-- Changed from Color(0xFF17153A)
+        backgroundColor: Colors.teal.shade700,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
@@ -355,48 +651,6 @@ class _MapViewState extends State<MapView> {
             mapType: MapType.normal,
             compassEnabled: true,
             mapToolbarEnabled: false,
-          ),
-          Positioned(
-            top: 16,
-            left: 16,
-            right: 16,
-            child: Card(
-              elevation: 8,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search, color: Colors.grey),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        '${_activeCycles.length} cycles available nearby',
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                    if (_isRefreshing)
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
           ),
           Positioned(
             bottom: 16,
@@ -456,11 +710,61 @@ class _MapViewState extends State<MapView> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Tap on any cycle marker to rent',
+                      'Tap to view cycle list or tap markers to rent',
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 14,
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _showCycleList,
+                            icon: const Icon(Icons.list),
+                            label: const Text('View List'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal.shade700,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.blue),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: const BoxDecoration(
+                                  color: Colors.blue,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'My Cycles: ${_myActiveCycles.length}',
+                                style: const TextStyle(
+                                  color: Colors.blue,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

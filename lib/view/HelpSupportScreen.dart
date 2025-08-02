@@ -145,7 +145,7 @@ class HelpSupportScreen extends StatelessWidget {
               ),
             ),
             subtitle: Text(
-              'support@example.com',
+              'cyclex@gmail.com',
               style: TextStyle(
                 color: Colors.grey.shade600,
               ),
@@ -164,7 +164,7 @@ class HelpSupportScreen extends StatelessWidget {
               ),
             ),
             subtitle: Text(
-              '+1 (555) 123-4567',
+              '+88 (017) 27892717',
               style: TextStyle(
                 color: Colors.grey.shade600,
               ),
