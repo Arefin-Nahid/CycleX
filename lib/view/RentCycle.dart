@@ -4,7 +4,7 @@ import '../services/api_service.dart';
 import '../services/firebase_database_service.dart';
 import '../models/cycle.dart';
 import 'RentInProgressScreen.dart';
-import 'FirebaseTestScreen.dart';
+
 
 class RentCycle extends StatefulWidget {
   final String cycleId; // This will be passed from QR scanner
@@ -769,37 +769,7 @@ class _RentCycleState extends State<RentCycle> {
               ),
               const SizedBox(height: 12),
               
-              // Firebase Test Button (for development/testing)
-              SizedBox(
-                width: double.infinity,
-                height: 40,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FirebaseTestScreen(cycleId: widget.cycleId),
-                      ),
-                    );
-                  },
-                  child: const Text(
-                    '🔒 Test Firebase Lock',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+
               
               // Terms and conditions
               Container(

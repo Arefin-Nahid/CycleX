@@ -317,45 +317,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Demo Payment Info
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Demo Payment',
-                            style: TextStyle(
-                              color: Colors.blue,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'For demo purposes, use any valid Bangladesh phone number (e.g., 01712345678) and any transaction ID with 6+ characters (e.g., ABC123456789).',
-                            style: TextStyle(
-                              color: Colors.blue.withOpacity(0.8),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
+
 
               // Payment Method Selection
               const Text(
