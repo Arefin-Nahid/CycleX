@@ -13,8 +13,8 @@ class SSLCommerzService {
     required Map<String, dynamic> customerInfo,
   }) async {
     try {
-      print('🔍 Creating SSL payment session for rental: $rentalId');
-      print('💰 Amount: $amount');
+          print('Creating SSL payment session for rental: $rentalId');
+    print('Amount: $amount');
 
       // Update auth header before making the request
       await ApiService.instance.updateAuthHeader();
@@ -28,10 +28,10 @@ class SSLCommerzService {
         },
       );
 
-      print('✅ SSL session created successfully: $response');
+              print('SSL session created successfully: $response');
       return Map<String, dynamic>.from(response);
     } catch (e) {
-      print('❌ Error creating SSL session: $e');
+              print('Error creating SSL session: $e');
       throw Exception('Failed to create payment session: $e');
     }
   }
@@ -55,7 +55,7 @@ class SSLCommerzService {
         throw Exception('Could not launch payment gateway');
       }
     } catch (e) {
-      print('❌ Error launching payment gateway: $e');
+              print('Error launching payment gateway: $e');
       throw Exception('Failed to launch payment gateway: $e');
     }
   }
@@ -84,7 +84,7 @@ class SSLCommerzService {
         ),
       );
     } catch (e) {
-      print('❌ Error showing payment gateway: $e');
+              print('Error showing payment gateway: $e');
       throw Exception('Failed to show payment gateway: $e');
     }
   }
@@ -94,7 +94,7 @@ class SSLCommerzService {
     required String transactionId,
   }) async {
     try {
-      print('🔍 Checking payment status for transaction: $transactionId');
+      print('Checking payment status for transaction: $transactionId');
 
       // Update auth header before making the request
       await ApiService.instance.updateAuthHeader();
@@ -103,10 +103,10 @@ class SSLCommerzService {
         'payments/ssl/status/$transactionId',
       );
 
-      print('✅ Payment status: $response');
+              print('Payment status: $response');
       return Map<String, dynamic>.from(response);
     } catch (e) {
-      print('❌ Error checking payment status: $e');
+              print('Error checking payment status: $e');
       throw Exception('Failed to check payment status: $e');
     }
   }
@@ -117,7 +117,7 @@ class SSLCommerzService {
     int maxAttempts = 30, // 30 attempts with 2-second intervals = 1 minute
     int intervalSeconds = 2,
   }) async {
-    print('🔄 Polling payment status for transaction: $transactionId');
+    print('Polling payment status for transaction: $transactionId');
 
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -127,21 +127,21 @@ class SSLCommerzService {
           final paymentStatus = status['payment']['status'];
           
           if (paymentStatus == 'completed') {
-            print('✅ Payment completed successfully');
+            print('Payment completed successfully');
             return status;
           } else if (paymentStatus == 'failed' || paymentStatus == 'cancelled') {
-            print('❌ Payment failed or cancelled');
+                          print('Payment failed or cancelled');
             return status;
           }
         }
 
-        print('⏳ Payment still pending, attempt $attempt/$maxAttempts');
+                  print('Payment still pending, attempt $attempt/$maxAttempts');
         
         if (attempt < maxAttempts) {
           await Future.delayed(Duration(seconds: intervalSeconds));
         }
       } catch (e) {
-        print('❌ Error polling payment status: $e');
+        print('Error polling payment status: $e');
         if (attempt == maxAttempts) {
           throw Exception('Payment status polling failed: $e');
         }
@@ -195,7 +195,7 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
             setState(() {
               _isLoading = false;
             });
-            print('✅ WebView page finished: $url');
+            print('WebView page finished: $url');
           },
           onNavigationRequest: (NavigationRequest request) {
             print('🔗 Navigation request: ${request.url}');

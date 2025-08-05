@@ -54,7 +54,7 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
     if (!widget.gatewayUrl.contains('sslcommerz') && 
         !widget.gatewayUrl.contains('sandbox') &&
         !widget.gatewayUrl.contains('gateway')) {
-      print('⚠️ Warning: Gateway URL may not be a valid SSLCommerz URL: ${widget.gatewayUrl}');
+              print('Warning: Gateway URL may not be a valid SSLCommerz URL: ${widget.gatewayUrl}');
     }
     
     _webViewController = WebViewController()
@@ -66,13 +66,13 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
               _isLoading = true;
               _errorMessage = null; // Clear any previous error messages
             });
-            print('🔍 WebView loading: $url');
+            print('WebView loading: $url');
           },
           onPageFinished: (String url) {
             setState(() {
               _isLoading = false;
             });
-            print('✅ WebView loaded: $url');
+                          print('WebView loaded: $url');
             _handleCallbackUrl(url);
           },
           onNavigationRequest: (NavigationRequest request) {
@@ -85,7 +85,7 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
                 request.url.contains('error') ||
                 request.url.contains('404') ||
                 request.url.contains('500')) {
-              print('🚫 Blocked navigation to potential error endpoint: ${request.url}');
+              print('Blocked navigation to potential error endpoint: ${request.url}');
               return NavigationDecision.prevent;
             }
             
@@ -96,7 +96,7 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
                 !request.url.contains('success') &&
                 !request.url.contains('fail') &&
                 !request.url.contains('cancel')) {
-              print('🚫 Blocked navigation to non-gateway URL: ${request.url}');
+              print('Blocked navigation to non-gateway URL: ${request.url}');
               return NavigationDecision.prevent;
             }
             
@@ -106,7 +106,7 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
             return NavigationDecision.navigate;
           },
           onWebResourceError: (WebResourceError error) {
-            print('❌ WebView error: ${error.description}');
+            print('WebView error: ${error.description}');
             // Don't show error messages to user, just log them
             // This prevents backend error messages from being displayed
             
@@ -114,7 +114,7 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
             if (error.description.contains('{') || 
                 error.description.contains('"message"') ||
                 error.description.contains('Payment not found')) {
-              print('🚫 Blocked backend error message from being displayed: ${error.description}');
+              print('Blocked backend error message from being displayed: ${error.description}');
               return;
             }
           },
@@ -127,7 +127,7 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
     if (url.contains('/payments/ssl/success') ||
         url.contains('/payments/ssl/fail') ||
         url.contains('/payments/ssl/cancel')) {
-      print('🔄 Callback URL detected: $url');
+              print('Callback URL detected: $url');
       bool isSuccess = url.contains('/success');
       _showPaymentResultDialog(isSuccess);
       return true;
@@ -158,7 +158,7 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
         // Handle the response based on payment status
         if (status['payment'] != null) {
           final paymentStatus = status['payment']['status'];
-          print('📊 Payment status poll: $paymentStatus (attempt $_pollingAttempts/$_maxPollingAttempts)');
+          print('Payment status poll: $paymentStatus (attempt $_pollingAttempts/$_maxPollingAttempts)');
           
           if (paymentStatus == 'completed') {
             _paymentCompleted = true;
@@ -171,17 +171,17 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
             _showPaymentResultDialog(false);
           } else if (paymentStatus == 'pending') {
             // Continue polling for pending payments
-            print('⏳ Payment still pending, continuing to poll...');
+                          print('Payment still pending, continuing to poll...');
           } else {
             // Unknown status, continue polling
             print('❓ Unknown payment status: $paymentStatus, continuing to poll...');
           }
         } else {
           // No payment data in response, continue polling
-          print('⏳ No payment data available yet, continuing to poll...');
+                        print('No payment data available yet, continuing to poll...');
         }
       } catch (e) {
-        print('❌ Error polling payment status: $e');
+                  print('Error polling payment status: $e');
         // Don't show error to user, just continue polling
         // The payment might not be in database yet
         // This is expected behavior when payment is still being processed

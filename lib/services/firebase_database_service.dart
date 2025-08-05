@@ -9,7 +9,7 @@ class FirebaseDatabaseService {
   /// [isLocked] - 1 for locked, 0 for unlocked
   static Future<Map<String, dynamic>> updateCycleLockStatus(String cycleId, int isLocked) async {
     try {
-      print('🔒 Firebase: Updating lock status for cycle $cycleId to $isLocked');
+      print('Firebase: Updating lock status for cycle $cycleId to $isLocked');
       
       // Update the cycle's lock status in Firebase Realtime Database
       await _database.child('cycles').child(cycleId).update({
@@ -18,7 +18,7 @@ class FirebaseDatabaseService {
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
 
-      print('✅ Firebase: Successfully updated lock status for cycle $cycleId');
+              print('Firebase: Successfully updated lock status for cycle $cycleId');
       
       return {
         'success': true,
@@ -27,7 +27,7 @@ class FirebaseDatabaseService {
         'message': 'Cycle lock status updated to ${isLocked == 1 ? 'locked' : 'unlocked'}'
       };
     } catch (error) {
-      print('❌ Firebase: Error updating lock status for cycle $cycleId: $error');
+              print('Firebase: Error updating lock status for cycle $cycleId: $error');
       throw Exception('Failed to update cycle lock status: $error');
     }
   }
@@ -36,13 +36,13 @@ class FirebaseDatabaseService {
   /// [cycleId] - The cycle ID
   static Future<Map<String, dynamic>> getCycleLockStatus(String cycleId) async {
     try {
-      print('🔍 Firebase: Getting lock status for cycle $cycleId');
+      print('Firebase: Getting lock status for cycle $cycleId');
       
       final snapshot = await _database.child('cycles').child(cycleId).once();
       final data = snapshot.snapshot.value as Map<dynamic, dynamic>?;
 
       if (data == null) {
-        print('⚠️ Firebase: No data found for cycle $cycleId');
+                  print('Firebase: No data found for cycle $cycleId');
         return {
           'success': false,
           'cycleId': cycleId,
@@ -50,7 +50,7 @@ class FirebaseDatabaseService {
         };
       }
 
-      print('✅ Firebase: Retrieved lock status for cycle $cycleId: $data');
+              print('Firebase: Retrieved lock status for cycle $cycleId: $data');
       
       return {
         'success': true,
@@ -61,7 +61,7 @@ class FirebaseDatabaseService {
         'data': data
       };
     } catch (error) {
-      print('❌ Firebase: Error getting lock status for cycle $cycleId: $error');
+              print('Firebase: Error getting lock status for cycle $cycleId: $error');
       throw Exception('Failed to get cycle lock status: $error');
     }
   }
@@ -80,7 +80,7 @@ class FirebaseDatabaseService {
         ...cycleData
       });
 
-      print('✅ Firebase: Successfully initialized cycle $cycleId');
+              print('Firebase: Successfully initialized cycle $cycleId');
       
       return {
         'success': true,
@@ -88,7 +88,7 @@ class FirebaseDatabaseService {
         'message': 'Cycle initialized in Firebase Realtime Database'
       };
     } catch (error) {
-      print('❌ Firebase: Error initializing cycle $cycleId: $error');
+              print('Firebase: Error initializing cycle $cycleId: $error');
       throw Exception('Failed to initialize cycle: $error');
     }
   }
@@ -101,7 +101,7 @@ class FirebaseDatabaseService {
       
       await _database.child('cycles').child(cycleId).remove();
 
-      print('✅ Firebase: Successfully deleted cycle $cycleId');
+              print('Firebase: Successfully deleted cycle $cycleId');
       
       return {
         'success': true,
@@ -109,7 +109,7 @@ class FirebaseDatabaseService {
         'message': 'Cycle deleted from Firebase Realtime Database'
       };
     } catch (error) {
-      print('❌ Firebase: Error deleting cycle $cycleId: $error');
+              print('Firebase: Error deleting cycle $cycleId: $error');
       throw Exception('Failed to delete cycle: $error');
     }
   }
@@ -117,12 +117,12 @@ class FirebaseDatabaseService {
   /// Get all cycles from Firebase Realtime Database
   static Future<Map<String, dynamic>> getAllCycles() async {
     try {
-      print('📋 Firebase: Getting all cycles from Realtime Database');
+      print('Firebase: Getting all cycles from Realtime Database');
       
       final snapshot = await _database.child('cycles').once();
       final data = snapshot.snapshot.value as Map<dynamic, dynamic>?;
 
-      print('✅ Firebase: Retrieved ${data?.length ?? 0} cycles');
+              print('Firebase: Retrieved ${data?.length ?? 0} cycles');
       
       return {
         'success': true,
@@ -130,7 +130,7 @@ class FirebaseDatabaseService {
         'count': data?.length ?? 0
       };
     } catch (error) {
-      print('❌ Firebase: Error getting all cycles: $error');
+              print('Firebase: Error getting all cycles: $error');
       throw Exception('Failed to get all cycles: $error');
     }
   }
@@ -170,7 +170,7 @@ class FirebaseDatabaseService {
       }
       return false;
     } catch (error) {
-      print('❌ Firebase: Error checking if cycle is locked: $error');
+              print('Firebase: Error checking if cycle is locked: $error');
       return false;
     }
   }

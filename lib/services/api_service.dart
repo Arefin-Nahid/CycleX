@@ -151,12 +151,12 @@ class ApiService {
       final response = await instance.get('payments/ssl/status/$transactionId');
       return Map<String, dynamic>.from(response);
     } catch (e) {
-      print('❌ Error checking SSL payment status: $e');
+              print('Error checking SSL payment status: $e');
       
       // Handle "Payment not found" error gracefully
       if (e.toString().contains('Payment not found') || 
           e.toString().contains('PAYMENT_NOT_FOUND')) {
-        print('⏳ Payment not found in database yet, continuing to poll...');
+        print('Payment not found in database yet, continuing to poll...');
         // Return a default response indicating payment is still pending
         return {
           'payment': {
@@ -245,7 +245,7 @@ class ApiService {
       final response = await instance.get('renter/rental-history');
       final data = response;
       
-      print('📋 Rental History API Response: $data');
+              print('Rental History API Response: $data');
       
       if (data is Map<String, dynamic> && data.containsKey('rentals')) {
         return List<Map<String, dynamic>>.from(data['rentals']);

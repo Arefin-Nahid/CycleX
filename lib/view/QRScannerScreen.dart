@@ -103,8 +103,8 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     // Stop scanning
     controller?.stop();
 
-    print('🔍 QR Scanner detected code: $code');
-    print('🔍 Code length: ${code.length}');
+          print('QR Scanner detected code: $code');
+      print('Code length: ${code.length}');
 
     try {
       // Validate cycle ID format first
@@ -124,7 +124,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       });
 
       // Return the valid code to the previous screen
-      print('✅ QR code validated successfully');
+              print('QR code validated successfully');
       Navigator.pop(context, code);
       
     } catch (e) {
@@ -132,7 +132,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         isValidating = false;
       });
       
-      print('❌ QR validation failed: $e');
+              print('QR validation failed: $e');
       _showErrorDialog(_getErrorMessage(e.toString()));
     }
   }

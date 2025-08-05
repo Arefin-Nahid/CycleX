@@ -38,26 +38,26 @@ class _RentCycleState extends State<RentCycle> {
         _errorMessage = null;
       });
 
-      print('🔍 RentCycle: Fetching data for cycle ID: ${widget.cycleId}');
-      print('🔍 RentCycle: Cycle ID length: ${widget.cycleId.length}');
+          print('RentCycle: Fetching data for cycle ID: ${widget.cycleId}');
+    print('RentCycle: Cycle ID length: ${widget.cycleId.length}');
 
       // Fetch cycle data from backend with retry logic
       final response = await ApiService.getCycleByIdWithRetry(widget.cycleId, maxRetries: 3);
       
-      print('🔍 RentCycle: API Response received: ${response.toString()}');
+              print('RentCycle: API Response received: ${response.toString()}');
       
       if (response['cycle'] != null) {
-        print('✅ RentCycle: Cycle data found successfully');
+                  print('RentCycle: Cycle data found successfully');
         setState(() {
           _cycleData = response['cycle'];
           _isLoading = false;
         });
       } else {
-        print('❌ RentCycle: No cycle data in response');
+                  print('RentCycle: No cycle data in response');
         throw Exception('Cycle data not found in response');
       }
     } catch (e) {
-      print('❌ RentCycle: Error fetching cycle data: $e');
+              print('RentCycle: Error fetching cycle data: $e');
       setState(() {
         _errorMessage = _getErrorMessage(e.toString());
         _isLoading = false;
@@ -66,7 +66,7 @@ class _RentCycleState extends State<RentCycle> {
   }
 
   String _getErrorMessage(String error) {
-    print('🔍 Processing error: $error');
+          print('Processing error: $error');
     
     if (error.contains('CYCLE_NOT_FOUND')) {
       return 'Cycle not found. Please check the QR code.';
@@ -103,14 +103,14 @@ class _RentCycleState extends State<RentCycle> {
         _isRenting = true;
       });
 
-      print('🔍 Starting rental for cycle: ${widget.cycleId}');
+      print('Starting rental for cycle: ${widget.cycleId}');
 
       Map<String, dynamic> response;
       
       try {
         // Use QR rental endpoint for better consistency
         response = await ApiService.rentCycleByQR(widget.cycleId);
-        print('✅ QR rental response: $response');
+                  print('QR rental response: $response');
         
         // Check if response is valid
         if (response == null) {
@@ -118,12 +118,12 @@ class _RentCycleState extends State<RentCycle> {
         }
         
       } catch (qrError) {
-        print('❌ QR rental failed: $qrError');
+                  print('QR rental failed: $qrError');
         
         // Fallback to regular rental endpoint
         try {
           response = await ApiService.instance.rentCycle(widget.cycleId);
-          print('✅ Regular rental response: $response');
+          print('Regular rental response: $response');
           
           // Check if response is valid
           if (response == null) {
@@ -131,7 +131,7 @@ class _RentCycleState extends State<RentCycle> {
           }
           
         } catch (regularError) {
-          print('❌ Regular rental also failed: $regularError');
+          print(' Regular rental also failed: $regularError');
           throw Exception('Both rental methods failed. QR: $qrError, Regular: $regularError');
         }
       }
@@ -139,17 +139,17 @@ class _RentCycleState extends State<RentCycle> {
       // Show success dialog
       _showSuccessDialog(response);
       
-      // 🔒 Update Firebase lock status locally for immediate feedback
+      // Update Firebase lock status locally for immediate feedback
       try {
         await FirebaseDatabaseService.lockCycle(widget.cycleId);
-        print('✅ Firebase: Cycle locked locally for immediate feedback');
+        print(' Firebase: Cycle locked locally for immediate feedback');
       } catch (firebaseError) {
-        print('❌ Firebase: Error locking cycle locally: $firebaseError');
+        print(' Firebase: Error locking cycle locally: $firebaseError');
         // Don't show error to user as the rental was successful
       }
       
     } catch (e) {
-      print('❌ Rental error: $e');
+      print(' Rental error: $e');
       setState(() {
         _isRenting = false;
       });
@@ -248,7 +248,7 @@ class _RentCycleState extends State<RentCycle> {
                   const SizedBox(width: 6), // reduced from 8
                   Expanded(
                     child: Text(
-                      '🔒 Cycle is now locked and ready for your use. The lock will be automatically released when you end the rental.',
+                      'Cycle is now unlocked and in use. The lock will be automatically engaged when you end the rental.',
                       style: const TextStyle(color: Colors.blue, fontSize: 12), // reduced from 14
                     ),
                   ),

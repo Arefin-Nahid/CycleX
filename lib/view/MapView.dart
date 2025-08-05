@@ -246,7 +246,7 @@ class _MapViewState extends State<MapView> {
         _isRefreshing = false;
       });
     } catch (e) {
-      print('❌ MapView: Error fetching active cycles: $e');
+              print('MapView: Error fetching active cycles: $e');
       setState(() {
         _isRefreshing = false;
       });
@@ -296,7 +296,7 @@ class _MapViewState extends State<MapView> {
         }
       }
     } catch (e) {
-      print('❌ MapView: Error fetching my active cycles: $e');
+              print('MapView: Error fetching my active cycles: $e');
     }
   }
 

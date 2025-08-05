@@ -76,8 +76,8 @@ class _SSLPaymentScreenState extends State<SSLPaymentScreen> {
     });
 
     try {
-      print('🔍 Starting SSL payment process for rental: ${widget.rentalId}');
-      print('💰 Amount: ${widget.amount}');
+          print('Starting SSL payment process for rental: ${widget.rentalId}');
+    print('Amount: ${widget.amount}');
 
       // Check if user is authenticated
       final user = FirebaseAuth.instance.currentUser;
@@ -85,7 +85,7 @@ class _SSLPaymentScreenState extends State<SSLPaymentScreen> {
         throw Exception('User not authenticated. Please log in again.');
       }
 
-      print('✅ User authenticated: ${user.uid}');
+              print('User authenticated: ${user.uid}');
 
       // Prepare customer info
       final customerInfo = {
@@ -98,7 +98,7 @@ class _SSLPaymentScreenState extends State<SSLPaymentScreen> {
       };
 
       // Create SSL payment session
-      print('🔍 About to create SSL session with data:');
+              print('About to create SSL session with data:');
       print('  Rental ID: ${widget.rentalId}');
       print('  Amount: ${widget.amount}');
       print('  Customer Info: $customerInfo');
@@ -109,7 +109,7 @@ class _SSLPaymentScreenState extends State<SSLPaymentScreen> {
         customerInfo: customerInfo,
       );
 
-      print('✅ SSL session created: $sessionResponse');
+              print('SSL session created: $sessionResponse');
 
       final session = sessionResponse['session'];
       final gatewayUrl = session['gatewayUrl'];
@@ -162,7 +162,7 @@ class _SSLPaymentScreenState extends State<SSLPaymentScreen> {
       );
 
     } catch (e) {
-      print('❌ Error processing payment: $e');
+      print('Error processing payment: $e');
       setState(() {
         _errorMessage = 'Failed to process payment: $e';
       });

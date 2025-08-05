@@ -69,15 +69,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
         'transactionId': transactionId,
       };
 
-      print('🔍 Processing payment: $paymentData');
+      print('Processing payment: $paymentData');
       final response = await ApiService.processPayment(paymentData);
-      print('✅ Payment response: $response');
+              print('Payment response: $response');
 
       if (mounted) {
         _showSuccessDialog();
       }
     } catch (e) {
-      print('❌ Payment error: $e');
+              print('Payment error: $e');
       if (mounted) {
         _showErrorDialog('Payment failed: $e');
       }

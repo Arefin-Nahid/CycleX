@@ -125,7 +125,7 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
 
   Future<void> _loadDashboardData() async {
     try {
-      print('🔄 Loading dashboard data...');
+      print('Loading dashboard data...');
       
       // Load data with individual error handling
       Map<String, dynamic> stats = {};
@@ -134,9 +134,9 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
       
       try {
         stats = await ApiService.instance.getRenterDashboardStats();
-        print('✅ Dashboard stats loaded successfully');
+        print('Dashboard stats loaded successfully');
       } catch (e) {
-        print('❌ Failed to load dashboard stats: $e');
+                  print('Failed to load dashboard stats: $e');
         stats = {
           'totalRides': 0,
           'totalSpent': 0.0,
@@ -150,23 +150,23 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
       
       try {
         actives = await ApiService.instance.getActiveRentals();
-        print('✅ Active rentals loaded successfully');
+        print('Active rentals loaded successfully');
       } catch (e) {
-        print('❌ Failed to load active rentals: $e');
+                  print('Failed to load active rentals: $e');
         actives = [];
       }
       
       try {
         rides = await ApiService.instance.getRecentRides();
-        print('✅ Recent rides loaded successfully');
+        print('Recent rides loaded successfully');
       } catch (e) {
-        print('❌ Failed to load recent rides: $e');
+                  print('Failed to load recent rides: $e');
         rides = [];
       }
 
-      print('📊 Dashboard Stats: $stats');
-      print('🚴 Active Rentals: $actives');
-      print('📋 Recent Rides: $rides');
+      print('Dashboard Stats: $stats');
+      print('Active Rentals: $actives');
+      print('Recent Rides: $rides');
 
       setState(() {
         dashboardStats = {
@@ -183,10 +183,10 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
         isLoading = false;
       });
       
-      print('✅ Dashboard data loaded successfully');
+      print('Dashboard data loaded successfully');
       
     } catch (e) {
-      print('❌ Error loading dashboard data: $e');
+      print('Error loading dashboard data: $e');
       setState(() {
         // Set default values on error
         dashboardStats = {
@@ -265,7 +265,7 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
 
     try {
       // Debug: Print the scanned cycle ID
-      print('🔍 Scanned Cycle ID: $cycleId');
+      print('Scanned Cycle ID: $cycleId');
       
       // Validate cycle ID format
       if (cycleId.length != 24) {
@@ -273,10 +273,10 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
       }
       
       // Debug: Test API call first to check cycle availability
-      print('🔍 Testing API call to get cycle details...');
+              print('Testing API call to get cycle details...');
       try {
         final cycleResponse = await ApiService.instance.getCycleById(cycleId);
-        print('✅ Cycle details retrieved: ${cycleResponse['cycle']?['brand']} ${cycleResponse['cycle']?['model']}');
+                  print('Cycle details retrieved: ${cycleResponse['cycle']?['brand']} ${cycleResponse['cycle']?['model']}');
         
         // Check if cycle is available for rent
         final cycle = cycleResponse['cycle'];
@@ -292,15 +292,15 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
           throw Exception('This cycle is not available for rent');
         }
         
-        print('✅ Cycle is available for rent');
+                  print('Cycle is available for rent');
         
       } catch (apiError) {
-        print('❌ API Error: $apiError');
+                  print('API Error: $apiError');
         throw Exception('Failed to fetch cycle details: $apiError');
       }
 
       // Navigate to RentCycle screen with the scanned cycle ID
-      print('🔍 Navigating to RentCycle screen...');
+              print('Navigating to RentCycle screen...');
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
@@ -310,11 +310,11 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
 
       // If rental was successful, refresh dashboard data
       if (result == true) {
-        print('✅ Rental successful, refreshing dashboard...');
+                  print('Rental successful, refreshing dashboard...');
         await _loadDashboardData();
       }
     } catch (e) {
-      print('❌ Error in _processScannedCode: $e');
+              print('Error in _processScannedCode: $e');
       // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1678,14 +1678,14 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
           ),
         );
         
-        print('🔄 Payment result received: $result');
+        print('Payment result received: $result');
         
         // Check if payment was successful and refresh is needed
         if (mounted && result == true) {
-          print('✅ Payment successful, starting dashboard refresh...');
+          print('Payment successful, starting dashboard refresh...');
           await _refreshDashboardData();
         } else {
-          print('❌ Payment failed or cancelled: $result');
+                      print('Payment failed or cancelled: $result');
         }
       }
     } catch (e) {
@@ -1725,29 +1725,29 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
         builder: (context) => const RentInProgressScreen(),
       ),
     ).then((result) async {
-      print('🔄 RentInProgressScreen result received: $result');
+              print('RentInProgressScreen result received: $result');
       
       // Check if refresh is needed when returning from RentInProgressScreen
       if (mounted && result != null && result is Map && result['refresh'] == true) {
-        print('✅ Refresh flag detected from RentInProgressScreen, starting dashboard refresh...');
+                  print('Refresh flag detected from RentInProgressScreen, starting dashboard refresh...');
         await _refreshDashboardData();
       } else {
-        print('❌ No refresh flag from RentInProgressScreen or invalid result: $result');
+                  print('No refresh flag from RentInProgressScreen or invalid result: $result');
       }
     });
   }
 
   Future<void> _refreshDashboardData() async {
     try {
-      print('🔄 Starting dashboard refresh...');
+      print('Starting dashboard refresh...');
       
       // Refresh data silently without any visual indicators
       await _loadDashboardData();
       
-      print('✅ Dashboard refresh completed');
+              print('Dashboard refresh completed');
       
     } catch (e) {
-      print('❌ Error refreshing dashboard: $e');
+              print('Error refreshing dashboard: $e');
     }
   }
 } 
