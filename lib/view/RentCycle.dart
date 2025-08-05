@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
+import '../services/firebase_database_service.dart';
 import '../models/cycle.dart';
 import 'RentInProgressScreen.dart';
+import 'FirebaseTestScreen.dart';
 
 class RentCycle extends StatefulWidget {
   final String cycleId; // This will be passed from QR scanner
@@ -137,6 +139,15 @@ class _RentCycleState extends State<RentCycle> {
       // Show success dialog
       _showSuccessDialog(response);
       
+      // 🔒 Update Firebase lock status locally for immediate feedback
+      try {
+        await FirebaseDatabaseService.lockCycle(widget.cycleId);
+        print('✅ Firebase: Cycle locked locally for immediate feedback');
+      } catch (firebaseError) {
+        print('❌ Firebase: Error locking cycle locally: $firebaseError');
+        // Don't show error to user as the rental was successful
+      }
+      
     } catch (e) {
       print('❌ Rental error: $e');
       setState(() {
@@ -218,6 +229,27 @@ class _RentCycleState extends State<RentCycle> {
                     child: Text(
                       'Your rental has started successfully! You can now use the cycle.',
                       style: const TextStyle(color: Colors.green, fontSize: 12), // reduced from 14
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8), // reduced from 12
+            Container(
+              padding: const EdgeInsets.all(10), // reduced from 12
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6), // reduced from 8
+                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.lock, color: Colors.blue, size: 16), // reduced from 20
+                  const SizedBox(width: 6), // reduced from 8
+                  Expanded(
+                    child: Text(
+                      '🔒 Cycle is now locked and ready for your use. The lock will be automatically released when you end the rental.',
+                      style: const TextStyle(color: Colors.blue, fontSize: 12), // reduced from 14
                     ),
                   ),
                 ],
@@ -733,6 +765,38 @@ class _RentCycleState extends State<RentCycle> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              
+              // Firebase Test Button (for development/testing)
+              SizedBox(
+                width: double.infinity,
+                height: 40,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FirebaseTestScreen(cycleId: widget.cycleId),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    '🔒 Test Firebase Lock',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
