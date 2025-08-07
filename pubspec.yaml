@@ -57,6 +57,7 @@ dependencies:
   permission_handler: ^11.0.1
   url_launcher: ^6.2.1
   webview_flutter: ^4.4.2
+  timezone: ^0.9.2
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -75,8 +76,8 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^4.0.0
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
+# For information on the generic Dart part of this file, see
+# the following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
 flutter:
@@ -92,6 +93,7 @@ flutter:
     - assets/images/icon.svg
     - assets/images/kuet_logo.png
     - assets/images/cycle_marker.png
+    - assets/images/profile.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

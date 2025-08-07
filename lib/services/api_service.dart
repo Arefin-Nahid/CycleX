@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:CycleX/services/timezone_service.dart';
 
 class ApiService {
   final String baseUrl;
@@ -532,17 +533,21 @@ class ApiService {
     }
   }
 
-  // rentCycle method
+  // rentCycle method with Bangladesh timezone
   Future<Map<String, dynamic>> rentCycle(String cycleId) async {
     try {
       await updateAuthHeader(); // Ensure headers are updated with Firebase token
       print('🔍 API: Calling rentals endpoint with cycleId: $cycleId');
       
-      final now = DateTime.now();
+      // Use Bangladesh timezone for rental times
+      final now = TimezoneService.getCurrentTimeInBangladesh();
+      final endTime = now.add(const Duration(hours: 24)); // 24 hour default
+      
       final response = await post('rentals', {
         'cycleId': cycleId,
-        'startTime': now.toIso8601String(),
-        'endTime': now.add(const Duration(hours: 24)).toIso8601String(), // 24 hour default
+        'startTime': now.toUtc().toIso8601String(),
+        'endTime': endTime.toUtc().toIso8601String(),
+        'timezone': TimezoneService.bangladeshTimezone,
       });
       print('✅ API: Rental response received: $response');
       

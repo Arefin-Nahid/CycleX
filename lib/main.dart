@@ -5,16 +5,17 @@ import 'package:CycleX/Config/AllTitles.dart';
 import 'package:CycleX/Config/routes/OneGenerateRoute.dart';
 import 'package:CycleX/Config/routes/PageConstants.dart';
 import 'package:CycleX/services/api_service.dart';
+import 'package:CycleX/services/timezone_service.dart';
 import 'services/user_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  
-  // Initialize ApiService
+
+  TimezoneService.initialize();
+
   ApiService.initialize('https://cycle-x-backend.vercel.app/api');
-  
-  // Create userService instance
+
   final userService = UserService(ApiService.instance);
   
   runApp(MyApp(userService: userService));

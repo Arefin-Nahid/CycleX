@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../services/api_service.dart';
-import '../services/firebase_database_service.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:CycleX/services/api_service.dart';
+import 'package:CycleX/services/firebase_database_service.dart';
+import 'package:CycleX/services/timezone_service.dart';
 import '../models/cycle.dart';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
+import 'MapView.dart';
 import 'RentInProgressScreen.dart';
 
 
@@ -200,7 +207,7 @@ class _RentCycleState extends State<RentCycle> {
             ),
             const SizedBox(height: 6), // reduced from 8
             Text(
-              'Start Time: ${DateFormat('MMM dd, yyyy HH:mm').format(startTime)}',
+              'Start Time: ${TimezoneService.formatTime(startTime, format: 'MMM dd, yyyy HH:mm')}',
               style: const TextStyle(color: Colors.white, fontSize: 14), // reduced from default
             ),
             const SizedBox(height: 6), // reduced from 8

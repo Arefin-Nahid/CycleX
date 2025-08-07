@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
+import '../services/timezone_service.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({Key? key}) : super(key: key);
@@ -98,8 +99,8 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
       totalDistance += distance;
       totalTime += (duration as num).toInt();
 
-      if (rating != null && rating > 0) {
-        totalRating += rating.toDouble();
+      if (rating != null) {
+        totalRating += (rating as num).toDouble();
         ratingCount++;
       }
 
@@ -128,16 +129,29 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
     return _rentals.where((rental) => rental['status'] == _selectedFilter).toList();
   }
 
+  String _formatDateTime(dynamic dateTime) {
+    if (dateTime == null) return 'N/A';
+
+    try {
+      DateTime dt;
+      if (dateTime is String) {
+        dt = DateTime.parse(dateTime);
+      } else if (dateTime is DateTime) {
+        dt = dateTime;
+      } else {
+        return 'Invalid Date';
+      }
+
+      // Use Bangladesh timezone for formatting
+      return TimezoneService.formatTime(dt, format: 'MMM dd, h:mm a');
+    } catch (e) {
+      return 'Invalid Date';
+    }
+  }
+
   String _formatDuration(int minutes) {
-    if (minutes < 60) {
-      return '${minutes}m';
-    }
-    final hours = minutes ~/ 60;
-    final remainingMinutes = minutes % 60;
-    if (remainingMinutes == 0) {
-      return '${hours}h';
-    }
-    return '${hours}h ${remainingMinutes}m';
+    // Use Bangladesh timezone service for duration formatting
+    return TimezoneService.formatRentalDuration(minutes);
   }
 
   String _formatDistance(double distance) {
@@ -402,7 +416,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            DateFormat('MMM dd, yyyy\nHH:mm').format(startTime),
+                            _formatDateTime(startTime),
                             style: const TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
@@ -427,7 +441,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              DateFormat('MMM dd, yyyy\nHH:mm').format(endTime),
+                              _formatDateTime(endTime),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,

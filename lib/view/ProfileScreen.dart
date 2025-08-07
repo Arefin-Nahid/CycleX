@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/api_service.dart';
 
@@ -78,43 +77,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _updateProfileImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+  String _getUserInitials() {
+    if (_displayName.isEmpty) return 'U';
     
-    if (image != null) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      try {
-        final user = _auth.currentUser;
-        if (user != null) {
-          // Upload to Firebase Storage
-          final ref = _storage.ref().child('profile_images/${user.uid}');
-          await ref.putFile(File(image.path));
-          final url = await ref.getDownloadURL();
-          
-          // Update in MongoDB backend
-          await ApiService.updateProfilePicture(user.uid, url);
-          
-          setState(() {
-            _profileImageUrl = url;
-          });
-
-          // Reload user profile from backend
-          await _loadUserProfileFromBackend(user.uid);
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update profile picture: $e')),
-        );
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+    final names = _displayName.trim().split(' ');
+    if (names.length >= 2) {
+      return '${names[0][0]}${names[1][0]}'.toUpperCase();
+    } else if (names.length == 1) {
+      return names[0][0].toUpperCase();
     }
+    return 'U';
+  }
+
+  Color _getAvatarColor() {
+    // Generate a consistent color based on the user's name
+    final hash = _displayName.hashCode;
+    final colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+      Colors.indigo,
+      Colors.pink,
+      Colors.amber,
+      Colors.cyan,
+      Colors.deepOrange,
+    ];
+    return colors[hash.abs() % colors.length];
   }
 
   Future<void> _handleLogout() async {
@@ -273,63 +263,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           padding: const EdgeInsets.all(20),
                           child: Column(
                             children: [
-                              Stack(
-                                children: [
-                                  Container(
-                                    width: 120,
-                                    height: 120,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.grey.shade200,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 4,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.1),
-                                          blurRadius: 20,
-                                          spreadRadius: 5,
-                                        ),
-                                      ],
+                              Container(
+                                width: 120,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 4,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 20,
+                                      spreadRadius: 5,
                                     ),
-                                    child: _isLoading
-                                        ? const CircularProgressIndicator(
-                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.teal),
+                                  ],
+                                ),
+                                child: _isLoading
+                                    ? const CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.teal),
+                                      )
+                                    : _profileImageUrl != null
+                                        ? ClipOval(
+                                            child: Image.network(
+                                              _profileImageUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                return _buildAvatarWidget();
+                                              },
+                                            ),
                                           )
-                                        : _profileImageUrl != null
-                                            ? ClipOval(
-                                                child: Image.network(
-                                                  _profileImageUrl!,
-                                                  fit: BoxFit.cover,
-                                                ),
-                                              )
-                                            : const Icon(
-                                                Icons.person,
-                                                size: 60,
-                                                color: Colors.grey,
-                                              ),
-                                  ),
-                                  Positioned(
-                                    bottom: 0,
-                                    right: 0,
-                                    child: GestureDetector(
-                                      onTap: _updateProfileImage,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.teal,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.edit,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                        : _buildAvatarWidget(),
                               ),
                               const SizedBox(height: 20),
                               Text(
@@ -431,6 +397,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarWidget() {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _getAvatarColor(),
+            _getAvatarColor().withOpacity(0.7),
+          ],
+        ),
+      ),
+      child: Center(
+        child: ClipOval(
+          child: Image.asset(
+            'assets/images/profile.png',
+            width: 80,
+            height: 80,
+            fit: BoxFit.cover,
           ),
         ),
       ),

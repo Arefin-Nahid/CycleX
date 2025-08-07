@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../services/ssl_commerz_service.dart';
+import '../services/timezone_service.dart';
 import 'SSLPaymentScreen.dart';
 import '../Config/routes/PageConstants.dart';
 
@@ -347,7 +348,9 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
     try {
       final cycle = _activeRental!['cycle'] as Map<String, dynamic>?;
       final startTime = DateTime.parse(_activeRental!['startTime']);
-      final duration = DateTime.now().difference(startTime);
+      final currentTime = TimezoneService.getCurrentTimeInBangladesh();
+      final bangladeshStartTime = TimezoneService.convertToBangladeshTime(startTime);
+      final duration = currentTime.difference(bangladeshStartTime);
       final hourlyRate = cycle?['hourlyRate'] ?? 0.0;
       final calculatedAmount = (duration.inMinutes / 60) * hourlyRate;
       
@@ -528,7 +531,9 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
 
     final cycle = _activeRental!['cycle'] as Map<String, dynamic>?;
     final startTime = DateTime.parse(_activeRental!['startTime']);
-    final duration = DateTime.now().difference(startTime);
+    final currentTime = TimezoneService.getCurrentTimeInBangladesh();
+    final bangladeshStartTime = TimezoneService.convertToBangladeshTime(startTime);
+    final duration = currentTime.difference(bangladeshStartTime);
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
     final hourlyRate = cycle?['hourlyRate'] ?? 0.0;
@@ -776,7 +781,7 @@ class _RentInProgressScreenState extends State<RentInProgressScreen> {
                       ),
                       const SizedBox(width: 6), // reduced from 8
                       Text(
-                        DateFormat('MMM dd, yyyy HH:mm').format(startTime),
+                        TimezoneService.formatTime(startTime, format: 'MMM dd, yyyy HH:mm'),
                         style: const TextStyle(
                           color: Colors.black, // Changed from white to black
                           fontSize: 14, // reduced from 16

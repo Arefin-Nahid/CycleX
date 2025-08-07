@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:CycleX/Config/routes/PageConstants.dart';
 import 'package:CycleX/services/api_service.dart';
+import 'package:CycleX/services/timezone_service.dart';
 import 'package:CycleX/view/QRScannerScreen.dart';
 import 'package:CycleX/view/RentCycle.dart';
 import 'package:CycleX/view/RentInProgressScreen.dart';
@@ -1221,7 +1222,7 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
                       child: _buildLiveStatItem(
                         icon: Icons.location_on_rounded,
                         label: 'Started',
-                        value: DateFormat('HH:mm').format(startTime),
+                        value: TimezoneService.formatTime(startTime, format: 'HH:mm'),
                         isLive: false,
                       ),
                     ),
@@ -1382,7 +1383,7 @@ class _RenterDashboardState extends State<RenterDashboard> with TickerProviderSt
                     Icon(Icons.schedule_rounded, size: 14, color: textColor.withOpacity(0.6)),
                     const SizedBox(width: 4),
                     Text(
-                      DateFormat('MMM dd • HH:mm').format(endTime),
+                      TimezoneService.formatTime(endTime, format: 'MMM dd • HH:mm'),
                       style: TextStyle(
                         fontSize: 13,
                         color: textColor.withOpacity(0.6),

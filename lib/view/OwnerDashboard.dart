@@ -4,6 +4,18 @@ import 'package:CycleX/view/owner/AddCycleScreen.dart';
 import 'package:CycleX/view/owner/MyCyclesScreen.dart';
 import 'package:CycleX/view/owner/RentalHistoryScreen.dart';
 import 'package:CycleX/services/api_service.dart';
+import 'package:CycleX/services/timezone_service.dart';
+import 'package:CycleX/Config/Allcolors.dart';
+import 'package:CycleX/Config/AllDimensions.dart';
+import 'package:CycleX/Config/AllTitles.dart';
+import 'package:CycleX/Config/AllImages.dart';
+import 'package:CycleX/view/MapView.dart';
+import 'package:CycleX/view/ProfileScreen.dart';
+import 'package:CycleX/view/QRScannerScreen.dart';
+import 'package:CycleX/view/EditProfileScreen.dart';
+import 'package:CycleX/view/NotificationsScreen.dart';
+import 'package:CycleX/view/SecurityScreen.dart';
+import 'package:CycleX/view/HelpSupportScreen.dart';
 
 class OwnerDashboard extends StatefulWidget {
   const OwnerDashboard({Key? key}) : super(key: key);
@@ -807,7 +819,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
         return 'Invalid Date';
       }
 
-      return '${dt.day}/${dt.month}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+      // Use Bangladesh timezone for formatting
+      return TimezoneService.formatTime(dt, format: 'dd/MM/yyyy HH:mm');
     } catch (e) {
       return 'Invalid Date';
     }
@@ -818,18 +831,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
 
     try {
       DateTime dt = DateTime.parse(time);
-      DateTime now = DateTime.now();
-      Duration difference = now.difference(dt);
-
-      if (difference.inDays > 0) {
-        return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
-      } else if (difference.inHours > 0) {
-        return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
-      } else if (difference.inMinutes > 0) {
-        return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
-      } else {
-        return 'Just now';
-      }
+      // Use Bangladesh timezone for relative time calculation
+      return TimezoneService.getRelativeTime(dt);
     } catch (e) {
       return 'Unknown time';
     }

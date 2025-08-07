@@ -127,12 +127,38 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
     if (url.contains('/payments/ssl/success') ||
         url.contains('/payments/ssl/fail') ||
         url.contains('/payments/ssl/cancel')) {
-              print('Callback URL detected: $url');
+      print('Callback URL detected: $url');
       bool isSuccess = url.contains('/success');
+      
+      // Update payment status on backend when callback is detected
+      _updatePaymentStatusOnBackend(isSuccess ? 'completed' : 'failed');
+      
       _showPaymentResultDialog(isSuccess);
       return true;
     }
     return false;
+  }
+
+  Future<void> _updatePaymentStatusOnBackend(String status) async {
+    try {
+      print('🔄 Updating payment status on backend: $status');
+      
+      final response = await ApiService.instance.post('payments/ssl/frontend-update', {
+        'transactionId': widget.transactionId,
+        'status': status,
+        'paymentDetails': {
+          'amount': widget.amount,
+          'timestamp': DateTime.now().toIso8601String(),
+          'source': 'frontend_callback'
+        }
+      });
+      
+      print('✅ Payment status updated on backend: $response');
+    } catch (e) {
+      print('❌ Error updating payment status on backend: $e');
+      // Don't show error to user, just log it
+      // The payment might still be processed by SSLCommerz callbacks
+    }
   }
 
   void _startPaymentStatusPolling() {
