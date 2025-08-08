@@ -194,10 +194,7 @@ class _SSLPaymentScreenState extends State<SSLPaymentScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         systemOverlayStyle: SystemUiOverlayStyle.light,
       ),
       body: _isLoading

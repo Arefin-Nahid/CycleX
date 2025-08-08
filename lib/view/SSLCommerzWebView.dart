@@ -325,12 +325,7 @@ class _SSLCommerzWebViewState extends State<SSLCommerzWebView> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () {
-            _showCloseConfirmationDialog();
-          },
-        ),
+        automaticallyImplyLeading: false,
         systemOverlayStyle: SystemUiOverlayStyle.light,
         actions: [
           IconButton(
