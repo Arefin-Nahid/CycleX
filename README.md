@@ -86,23 +86,14 @@ A comprehensive Flutter application for smart cycle sharing on the KUET campus. 
 
 ### 📱 App Screenshots
 
-#### 🔐 Authentication
-![Login Screen](assets/images/login.jpg)
+#### 🔐 Authentication, Home & History
+![Login, Home & History Screens](assets/images/Login_home_history.jpg)
 
-#### 🏠 Home Dashboard
-![Home Screen](assets/images/home.jpg)
+#### 👤 Owner, Renter & Map Views
+![Owner, Renter & Map Screens](assets/images/Owner_renter_map.jpg)
 
-#### 👤 Owner Interface
-![Owner Dashboard](assets/images/owner.jpg)
-
-#### 🚴 Renter Interface
-![Renter Dashboard](assets/images/renter.jpg)
-
-#### 🗺️ Map View with GPS Tracking
-![Map View](assets/images/map.jpg)
-
-#### 📊 Rental History
-![History Screen](assets/images/history.jpg)
+#### 💳 Payment System
+![Payment Interface](assets/images/payment.jpg)
 
 The app includes the following key screens:
 - **Splash Screen**: App introduction and loading
