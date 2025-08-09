@@ -253,11 +253,11 @@ class ApiService {
       } else if (data is List) {
         return List<Map<String, dynamic>>.from(data);
       } else {
-        print('⚠️ Unexpected rental history response format: $data');
+        print('Unexpected rental history response format: $data');
         return [];
       }
     } catch (e) {
-      print('❌ Error getting rental history: $e');
+      print('Error getting rental history: $e');
       return [];
     }
   }
@@ -392,11 +392,11 @@ class ApiService {
       } else if (data is List) {
         return List<Map<String, dynamic>>.from(data);
       } else {
-        print('⚠️ Unexpected owner rental history response format: $data');
+        print('Unexpected owner rental history response format: $data');
         return [];
       }
     } catch (e) {
-      print('❌ Error getting owner rental history: $e');
+      print('Error getting owner rental history: $e');
       return [];
     }
   }
@@ -410,7 +410,7 @@ class ApiService {
         headers: _headers,
       );
       final data = _handleResponse(response);
-      print('📊 Dashboard API Response: $data');
+      print('Dashboard API Response: $data');
       
       // Ensure proper type conversion for numeric values
       if (data is Map<String, dynamic>) {
@@ -427,7 +427,7 @@ class ApiService {
       
       return data;
     } catch (e) {
-      print('❌ Dashboard API Error: $e');
+      print('Dashboard API Error: $e');
       throw Exception('Failed to get renter dashboard stats: $e');
     }
   }
@@ -441,7 +441,7 @@ class ApiService {
         headers: _headers,
       );
       final data = _handleResponse(response);
-      print('🚴 Active Rentals API Response: $data');
+      print('Active Rentals API Response: $data');
       
       // Handle both array and object responses
       if (data is List) {
@@ -452,7 +452,7 @@ class ApiService {
         return [];
       }
     } catch (e) {
-      print('❌ Active Rentals API Error: $e');
+      print('Active Rentals API Error: $e');
       return []; // Return empty list instead of throwing
     }
   }
@@ -466,7 +466,7 @@ class ApiService {
         headers: _headers,
       );
       final data = _handleResponse(response);
-      print('📋 Recent Rides API Response: $data');
+      print('Recent Rides API Response: $data');
       
       // Handle both array and object responses
       if (data is List) {
@@ -477,7 +477,7 @@ class ApiService {
         return [];
       }
     } catch (e) {
-      print('❌ Recent Rides API Error: $e');
+      print('Recent Rides API Error: $e');
       return []; // Return empty list instead of throwing
     }
   }
@@ -486,14 +486,14 @@ class ApiService {
   static Future<Map<String, dynamic>> rentCycleByQR(String cycleId) async {
     try {
       await instance.updateAuthHeader();
-      print('🔍 API: Calling rent-by-qr endpoint with cycleId: $cycleId');
+      print('API: Calling rent-by-qr endpoint with cycleId: $cycleId');
       
       final response = await instance.post('cycles/rent-by-qr', {'cycleId': cycleId});
-      print('✅ API: Rental response received: $response');
+      print('API: Rental response received: $response');
       
       return Map<String, dynamic>.from(response);
     } catch (e) {
-      print('❌ API: Error in rentCycleByQR: $e');
+      print('API: Error in rentCycleByQR: $e');
       throw Exception('Failed to rent cycle via QR: $e');
     }
   }
@@ -537,7 +537,7 @@ class ApiService {
   Future<Map<String, dynamic>> rentCycle(String cycleId) async {
     try {
       await updateAuthHeader(); // Ensure headers are updated with Firebase token
-      print('🔍 API: Calling rentals endpoint with cycleId: $cycleId');
+      print('API: Calling rentals endpoint with cycleId: $cycleId');
       
       // Use Bangladesh timezone for rental times
       final now = TimezoneService.getCurrentTimeInBangladesh();
@@ -549,7 +549,7 @@ class ApiService {
         'endTime': endTime.toUtc().toIso8601String(),
         'timezone': TimezoneService.bangladeshTimezone,
       });
-      print('✅ API: Rental response received: $response');
+      print('API: Rental response received: $response');
       
       // Ensure we return a proper map
       if (response is Map<String, dynamic>) {
@@ -560,7 +560,7 @@ class ApiService {
         throw Exception('Empty response from server');
       }
     } catch (e) {
-      print('❌ API: Error in rentCycle: $e');
+      print('API: Error in rentCycle: $e');
       throw Exception('Failed to rent cycle: $e');
     }
   }
@@ -582,34 +582,34 @@ class ApiService {
   // Debug method to test rental endpoints
   static Future<void> debugRentalEndpoints(String cycleId) async {
     try {
-      print('🔍 DEBUG: Testing rental endpoints for cycle: $cycleId');
+      print('DEBUG: Testing rental endpoints for cycle: $cycleId');
       
       // Test cycle details endpoint
       try {
         final cycleDetails = await getCycleByIdWithRetry(cycleId);
-        print('✅ DEBUG: Cycle details: $cycleDetails');
+        print('DEBUG: Cycle details: $cycleDetails');
       } catch (e) {
-        print('❌ DEBUG: Cycle details failed: $e');
+        print('DEBUG: Cycle details failed: $e');
       }
       
       // Test regular rental endpoint
       try {
         final regularRental = await instance.rentCycle(cycleId);
-        print('✅ DEBUG: Regular rental: $regularRental');
+        print('DEBUG: Regular rental: $regularRental');
       } catch (e) {
-        print('❌ DEBUG: Regular rental failed: $e');
+        print('DEBUG: Regular rental failed: $e');
       }
       
       // Test QR rental endpoint
       try {
         final qrRental = await rentCycleByQR(cycleId);
-        print('✅ DEBUG: QR rental: $qrRental');
+        print('DEBUG: QR rental: $qrRental');
       } catch (e) {
-        print('❌ DEBUG: QR rental failed: $e');
+        print('DEBUG: QR rental failed: $e');
       }
       
     } catch (e) {
-      print('❌ DEBUG: Overall debug failed: $e');
+      print('DEBUG: Overall debug failed: $e');
     }
   }
 }
